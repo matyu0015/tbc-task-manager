@@ -452,7 +452,18 @@
             // イベント表示
             events: function(fetchInfo, successCallback, failureCallback) {
                 const filteredTasks = getFilteredTasks();
-                const events = filteredTasks.map(task => createCalendarEvent(task));
+                const events = [];
+                filteredTasks.forEach(task => {
+                    if (task.type === 'irregular' && task.candidateDates) {
+                        // 不定期タスク：各候補日時をイベントとして追加
+                        task.candidateDates.forEach((candidate, index) => {
+                            events.push(createCalendarEvent(task, candidate, index));
+                        });
+                    } else {
+                        // 定期タスク：従来通り
+                        events.push(createCalendarEvent(task));
+                    }
+                });
                 successCallback(events);
             },
             
@@ -495,24 +506,42 @@
     }
 
     // カレンダーイベント作成
-    function createCalendarEvent(task) {
+    function createCalendarEvent(task, candidateDate = null, candidateIndex = null) {
         const project = projects.find(p => p.id === task.projectId);
         const assignee = members.find(m => m.id === task.assigneeId);
         
-        return {
-            id: task.id,
-            title: `${task.title}`,
-            start: task.start,
-            end: task.end,
+        let eventData = {
+            id: candidateDate ? `${task.id}_candidate_${candidateIndex}` : task.id,
+            title: candidateDate ? `${task.title} (候補${candidateIndex + 1})` : task.title,
+            start: candidateDate ? candidateDate.start : task.start,
+            end: candidateDate ? candidateDate.end : task.end,
             backgroundColor: project ? project.color : '#667eea',
             borderColor: assignee ? assignee.color : '#333',
             textColor: getContrastColor(project ? project.color : '#667eea'),
             extendedProps: {
                 task: task,
                 assigneeName: assignee ? assignee.name : '未設定',
-                projectName: project ? project.name : '未設定'
+                projectName: project ? project.name : '未設定',
+                isIrregular: !!candidateDate,
+                candidateIndex: candidateIndex
             }
         };
+
+        // 不定期タスクの場合は視覚的に区別
+        if (candidateDate) {
+            eventData.backgroundColor = adjustColorAlpha(eventData.backgroundColor, 0.7);
+            eventData.classNames = ['irregular-task'];
+        }
+
+        return eventData;
+    }
+
+    // 色の透明度調整
+    function adjustColorAlpha(hexColor, alpha) {
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     // コントラスト色計算
@@ -971,26 +1000,58 @@
         const projectId = document.getElementById('task-project').value;
         const assigneeId = document.getElementById('task-assignee').value;
         const description = document.getElementById('task-description').value.trim();
-        const start = document.getElementById('task-start').value;
-        const end = document.getElementById('task-end').value;
+        const taskType = document.getElementById('task-type').value;
         const priority = document.getElementById('task-priority').value;
         const status = document.getElementById('task-status').value;
         
-        if (!name || !projectId || !assigneeId || !start) {
+        if (!name || !projectId || !assigneeId) {
             showNotification('必須項目を入力してください', 'error');
             return;
         }
-        
-        const taskData = {
+
+        let taskData = {
             title: name,
             projectId: projectId,
             assigneeId: assigneeId,
             description: description,
-            start: new Date(start).toISOString(),
-            end: end ? new Date(end).toISOString() : null,
             priority: priority,
-            status: status
+            status: status,
+            type: taskType
         };
+
+        if (taskType === 'irregular') {
+            // 不定期タスクの場合：候補日時を収集
+            const candidateDates = [];
+            document.querySelectorAll('.candidate-date-row').forEach(row => {
+                const startInput = row.querySelector('.candidate-date');
+                const endInput = row.querySelector('.candidate-end');
+                if (startInput.value) {
+                    candidateDates.push({
+                        start: new Date(startInput.value).toISOString(),
+                        end: endInput.value ? new Date(endInput.value).toISOString() : null
+                    });
+                }
+            });
+            
+            if (candidateDates.length === 0) {
+                showNotification('少なくとも1つの候補日時を入力してください', 'error');
+                return;
+            }
+            
+            taskData.candidateDates = candidateDates;
+        } else {
+            // 定期タスクの場合：従来通り
+            const start = document.getElementById('task-start').value;
+            const end = document.getElementById('task-end').value;
+            
+            if (!start) {
+                showNotification('開始日時を入力してください', 'error');
+                return;
+            }
+            
+            taskData.start = new Date(start).toISOString();
+            taskData.end = end ? new Date(end).toISOString() : null;
+        }
         
         try {
             if (currentTaskId) {
@@ -1723,6 +1784,69 @@
                 notification.parentNode.removeChild(notification);
             }
         }, 4000);
+    }
+
+    // 不定期タスク用の関数
+    window.toggleDateInputs = function() {
+        const taskType = document.getElementById('task-type').value;
+        const regularDates = document.getElementById('regular-dates');
+        const irregularDates = document.getElementById('irregular-dates');
+        const taskStart = document.getElementById('task-start');
+        const taskEnd = document.getElementById('task-end');
+        
+        if (taskType === 'irregular') {
+            regularDates.style.display = 'none';
+            irregularDates.style.display = 'block';
+            taskStart.required = false;
+            taskEnd.required = false;
+            
+            // 最初の候補日時を必須にする
+            const firstCandidate = document.querySelector('.candidate-date');
+            if (firstCandidate) firstCandidate.required = true;
+        } else {
+            regularDates.style.display = 'block';
+            irregularDates.style.display = 'none';
+            taskStart.required = true;
+            taskEnd.required = false;
+            
+            // 候補日時の必須を解除
+            document.querySelectorAll('.candidate-date').forEach(input => {
+                input.required = false;
+            });
+        }
+    };
+
+    window.addCandidateDate = function() {
+        const container = document.getElementById('candidate-dates-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'candidate-date-row';
+        newRow.innerHTML = `
+            <input type="datetime-local" class="candidate-date" required>
+            <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）">
+            <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn">×</button>
+        `;
+        container.appendChild(newRow);
+        
+        // 削除ボタンを表示
+        updateRemoveButtons();
+    };
+
+    window.removeCandidateDate = function(button) {
+        const row = button.parentElement;
+        row.remove();
+        updateRemoveButtons();
+    };
+
+    function updateRemoveButtons() {
+        const rows = document.querySelectorAll('.candidate-date-row');
+        rows.forEach((row, index) => {
+            const removeBtn = row.querySelector('.remove-date-btn');
+            if (rows.length > 1) {
+                removeBtn.style.display = 'flex';
+            } else {
+                removeBtn.style.display = 'none';
+            }
+        });
     }
 
     // モーダル外クリックで閉じる

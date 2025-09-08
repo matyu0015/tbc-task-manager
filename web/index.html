@@ -903,6 +903,54 @@
             background: #f0f2ff;
         }
 
+        .candidate-date-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .candidate-date, .candidate-end {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .remove-date-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-date-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .add-date-btn:hover {
+            background: #5a67d8;
+        }
+
+        .irregular-task {
+            border-left: 4px solid #f39c12 !important;
+        }
+
         @media (max-width: 1200px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -1189,7 +1237,15 @@
                         <textarea id="task-description" rows="3" placeholder="タスクの詳細説明..."></textarea>
                     </div>
                     
-                    <div class="form-row">
+                    <div class="form-group">
+                        <label>タスクタイプ *</label>
+                        <select id="task-type" required onchange="toggleDateInputs()">
+                            <option value="regular">定期（固定日時）</option>
+                            <option value="irregular">不定期（候補日時）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row" id="regular-dates">
                         <div class="form-group">
                             <label>開始日時 *</label>
                             <input type="datetime-local" id="task-start" required>
@@ -1197,6 +1253,20 @@
                         <div class="form-group">
                             <label>終了日時</label>
                             <input type="datetime-local" id="task-end">
+                        </div>
+                    </div>
+                    
+                    <div id="irregular-dates" style="display: none;">
+                        <div class="form-group">
+                            <label>候補日時 <small style="color: #666;">（複数設定可能）</small></label>
+                            <div id="candidate-dates-container">
+                                <div class="candidate-date-row">
+                                    <input type="datetime-local" class="candidate-date" required>
+                                    <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）">
+                                    <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn" style="display: none;">×</button>
+                                </div>
+                            </div>
+                            <button type="button" onclick="addCandidateDate()" class="add-date-btn">+ 候補日時を追加</button>
                         </div>
                     </div>
                     
