@@ -816,13 +816,22 @@
     function getTodayTasks() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
         
         return tasks.filter(task => {
-            const taskDate = new Date(task.start);
-            taskDate.setHours(0, 0, 0, 0);
-            return taskDate.getTime() === today.getTime();
+            if (task.type === 'irregular' && task.candidateDates) {
+                // 不定期タスク：候補日時のいずれかが今日の場合
+                return task.candidateDates.some(candidate => {
+                    const candidateDate = new Date(candidate.start);
+                    candidateDate.setHours(0, 0, 0, 0);
+                    return candidateDate.getTime() === today.getTime();
+                });
+            } else {
+                // 定期タスク：従来通り
+                if (!task.start) return false;
+                const taskDate = new Date(task.start);
+                taskDate.setHours(0, 0, 0, 0);
+                return taskDate.getTime() === today.getTime();
+            }
         });
     }
 
@@ -956,13 +965,57 @@
             document.getElementById('task-project').value = task.projectId;
             document.getElementById('task-assignee').value = task.assigneeId;
             document.getElementById('task-description').value = task.description || '';
-            document.getElementById('task-start').value = formatDateTimeLocal(task.start);
-            document.getElementById('task-end').value = task.end ? formatDateTimeLocal(task.end) : '';
             document.getElementById('task-priority').value = task.priority;
             document.getElementById('task-status').value = task.status;
+            
+            // タスクタイプを設定
+            const taskTypeSelect = document.getElementById('task-type');
+            if (task.type === 'irregular') {
+                taskTypeSelect.value = 'irregular';
+                toggleDateInputs(); // UI切り替え
+                
+                // 候補日時を設定
+                const container = document.getElementById('candidate-dates-container');
+                container.innerHTML = ''; // 既存をクリア
+                
+                if (task.candidateDates && task.candidateDates.length > 0) {
+                    task.candidateDates.forEach((candidate, index) => {
+                        if (index === 0) {
+                            // 最初の候補は既存の行を使用
+                            const firstRow = document.createElement('div');
+                            firstRow.className = 'candidate-date-row';
+                            firstRow.innerHTML = `
+                                <input type="datetime-local" class="candidate-date" required value="${formatDateTimeLocal(candidate.start)}">
+                                <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）" value="${candidate.end ? formatDateTimeLocal(candidate.end) : ''}">
+                                <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn" style="display: none;">×</button>
+                            `;
+                            container.appendChild(firstRow);
+                        } else {
+                            // 2つ目以降は追加
+                            const newRow = document.createElement('div');
+                            newRow.className = 'candidate-date-row';
+                            newRow.innerHTML = `
+                                <input type="datetime-local" class="candidate-date" required value="${formatDateTimeLocal(candidate.start)}">
+                                <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）" value="${candidate.end ? formatDateTimeLocal(candidate.end) : ''}">
+                                <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn">×</button>
+                            `;
+                            container.appendChild(newRow);
+                        }
+                    });
+                }
+                updateRemoveButtons();
+            } else {
+                // 定期タスク
+                taskTypeSelect.value = 'regular';
+                toggleDateInputs(); // UI切り替え
+                document.getElementById('task-start').value = task.start ? formatDateTimeLocal(task.start) : '';
+                document.getElementById('task-end').value = task.end ? formatDateTimeLocal(task.end) : '';
+            }
         } else {
             // 新規作成モード
             document.getElementById('task-form').reset();
+            document.getElementById('task-type').value = 'regular'; // デフォルトは定期
+            toggleDateInputs(); // UI切り替え
             if (date) {
                 document.getElementById('task-start').value = formatDateTimeLocal(date);
             }
@@ -1591,8 +1644,18 @@
         }
         
         return tasks.filter(task => {
-            const taskDate = new Date(task.start);
-            return taskDate >= startDate && taskDate <= endDate;
+            if (task.type === 'irregular' && task.candidateDates) {
+                // 不定期タスク：候補日時のいずれかが期間内の場合
+                return task.candidateDates.some(candidate => {
+                    const candidateDate = new Date(candidate.start);
+                    return candidateDate >= startDate && candidateDate <= endDate;
+                });
+            } else {
+                // 定期タスク：従来通り
+                if (!task.start) return false;
+                const taskDate = new Date(task.start);
+                return taskDate >= startDate && taskDate <= endDate;
+            }
         });
     }
 
