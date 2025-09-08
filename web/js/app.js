@@ -95,13 +95,13 @@
             }
         },
         
-        // プロジェクト操作
+        // 案件操作
         async getProjects() {
             try {
                 const snapshot = await db.collection('projects').orderBy('createdAt', 'desc').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
-                console.error('プロジェクト取得エラー:', error);
+                console.error('案件取得エラー:', error);
                 return [];
             }
         },
@@ -130,7 +130,7 @@
                     return docRef.id;
                 }
             } catch (error) {
-                console.error('プロジェクト保存エラー:', error);
+                console.error('案件保存エラー:', error);
                 throw error;
             }
         },
@@ -139,7 +139,7 @@
             try {
                 await db.collection('projects').doc(projectId).delete();
             } catch (error) {
-                console.error('プロジェクト削除エラー:', error);
+                console.error('案件削除エラー:', error);
                 throw error;
             }
         },
@@ -206,7 +206,7 @@
             if (projects.length === 0) {
                 const defaultProjects = [
                     {
-                        name: 'Webサイト制作',
+                        name: 'DS社',
                         color: '#667eea'
                     },
                     {
@@ -225,7 +225,7 @@
                 const defaultMembers = [
                     {
                         name: '田中太郎',
-                        role: 'プロジェクトマネージャー',
+                        role: '案件マネージャー',
                         color: '#ff6b6b'
                     },
                     {
@@ -252,7 +252,7 @@
             projects = JSON.parse(localStorage.getItem('projects')) || [
                 {
                     id: 'project-1',
-                    name: 'Webサイト制作',
+                    name: 'DS社',
                     color: '#667eea',
                     createdAt: new Date().toISOString()
                 },
@@ -267,7 +267,7 @@
                 {
                     id: 'member-1',
                     name: '田中太郎',
-                    role: 'プロジェクトマネージャー',
+                    role: '案件マネージャー',
                     color: '#ff6b6b',
                     createdAt: new Date().toISOString()
                 },
@@ -296,7 +296,7 @@
                 tasks = [
                     {
                         id: 'task-1',
-                        title: 'プロジェクト企画書作成',
+                        title: '案件企画書作成',
                         description: 'クライアント向けの企画書を作成する',
                         projectId: 'project-1',
                         assigneeId: 'member-1',
@@ -349,7 +349,7 @@
             loadDashboard();
         });
         
-        // プロジェクトのリアルタイム更新
+        // 案件のリアルタイム更新
         db.collection('projects').onSnapshot((snapshot) => {
             projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             updateProjectOptions();
@@ -364,13 +364,13 @@
         });
     }
 
-    // プロジェクトオプションを更新
+    // 案件オプションを更新
     function updateProjectOptions() {
-        // プロジェクトフィルター更新
+        // 案件フィルター更新
         const projectFilter = document.getElementById('project-filter');
         if (projectFilter) {
             const currentValue = projectFilter.value;
-            projectFilter.innerHTML = '<option value="">すべてのプロジェクト</option>';
+            projectFilter.innerHTML = '<option value="">すべての案件</option>';
             projects.forEach(project => {
                 projectFilter.innerHTML += `<option value="${project.name}">${project.name}</option>`;
             });
@@ -379,11 +379,11 @@
             }
         }
 
-        // タスク追加用プロジェクト選択更新
+        // タスク追加用案件選択更新
         const taskProject = document.getElementById('task-project');
         if (taskProject) {
             const currentValue = taskProject.value;
-            taskProject.innerHTML = '<option value="">プロジェクトを選択</option>';
+            taskProject.innerHTML = '<option value="">案件を選択</option>';
             projects.forEach(project => {
                 taskProject.innerHTML += `<option value="${project.name}">${project.name}</option>`;
             });
@@ -392,11 +392,11 @@
             }
         }
 
-        // デイリータスク追加用プロジェクト選択更新
+        // デイリータスク追加用案件選択更新
         const dailyTaskProject = document.getElementById('daily-task-project');
         if (dailyTaskProject) {
             const currentValue = dailyTaskProject.value;
-            dailyTaskProject.innerHTML = '<option value="">プロジェクトを選択</option>';
+            dailyTaskProject.innerHTML = '<option value="">案件を選択</option>';
             projects.forEach(project => {
                 dailyTaskProject.innerHTML += `<option value="${project.name}">${project.name}</option>`;
             });
@@ -485,7 +485,7 @@
                     if (assignee) {
                         info.el.style.borderLeftColor = assignee.color;
                         info.el.style.borderLeftWidth = '4px';
-                        info.el.title = `担当: ${assignee.name}\nプロジェクト: ${getProjectName(task.projectId)}\n優先度: ${task.priority}`;
+                        info.el.title = `担当: ${assignee.name}\n案件: ${getProjectName(task.projectId)}\n優先度: ${task.priority}`;
                     }
                 }
             }
@@ -550,9 +550,9 @@
         const memberFilter = document.getElementById('member-filter');
         const todayMemberFilter = document.getElementById('today-member-filter');
         
-        // プロジェクトフィルター（要素が存在する場合のみ）
+        // 案件フィルター（要素が存在する場合のみ）
         if (projectFilter) {
-            projectFilter.innerHTML = '<option value="">全プロジェクト</option>';
+            projectFilter.innerHTML = '<option value="">全案件</option>';
             projects.forEach(project => {
                 const option = document.createElement('option');
                 option.value = project.id;
@@ -728,7 +728,7 @@
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px;">
                         <div>
-                            <strong>プロジェクト:</strong><br>
+                            <strong>案件:</strong><br>
                             <span style="color: ${project ? project.color : '#666'};">
                                 ${project ? project.name : '未設定'}
                             </span>
@@ -918,7 +918,7 @@
         
         title.textContent = task ? 'タスク編集' : '新規タスク作成';
         
-        // プロジェクトとメンバーの選択肢を更新
+        // 案件とメンバーの選択肢を更新
         updateTaskFormOptions();
         
         if (task) {
@@ -1013,21 +1013,21 @@
         }
     }
 
-    // プロジェクト追加（非同期ラッパー）
+    // 案件追加（非同期ラッパー）
     window.addProject = function() {
         addProjectAsync().catch(error => {
-            console.error('プロジェクト追加エラー:', error);
-            showNotification('プロジェクトの追加に失敗しました', 'error');
+            console.error('案件追加エラー:', error);
+            showNotification('案件の追加に失敗しました', 'error');
         });
     };
     
-    // プロジェクト追加（実際の処理）
+    // 案件追加（実際の処理）
     async function addProjectAsync() {
         const name = document.getElementById('new-project-name').value.trim();
         const color = document.getElementById('project-color').value;
         
         if (!name) {
-            showNotification('プロジェクト名を入力してください', 'error');
+            showNotification('案件名を入力してください', 'error');
             return;
         }
         
@@ -1039,10 +1039,10 @@
             
             await DB_OPERATIONS.saveProject(projectData);
             document.getElementById('new-project-name').value = '';
-            showNotification('プロジェクトを追加しました', 'success');
+            showNotification('案件を追加しました', 'success');
         } catch (error) {
-            console.error('プロジェクト追加エラー:', error);
-            showNotification('プロジェクトの追加に失敗しました', 'error');
+            console.error('案件追加エラー:', error);
+            showNotification('案件の追加に失敗しました', 'error');
             throw error;
         }
     }
@@ -1095,15 +1095,15 @@
         modal.classList.add('show');
     };
 
-    // プロジェクト削除（非同期ラッパー）
+    // 案件削除（非同期ラッパー）
     window.deleteProject = function(projectId) {
         deleteProjectAsync(projectId).catch(error => {
-            console.error('プロジェクト削除エラー:', error);
-            showNotification('プロジェクトの削除に失敗しました', 'error');
+            console.error('案件削除エラー:', error);
+            showNotification('案件の削除に失敗しました', 'error');
         });
     };
     
-    // プロジェクト削除（実際の処理）
+    // 案件削除（実際の処理）
     async function deleteProjectAsync(projectId) {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
@@ -1111,11 +1111,11 @@
         const relatedTasks = tasks.filter(task => task.projectId === projectId);
         
         if (relatedTasks.length > 0) {
-            if (!confirm(`プロジェクト「${project.name}」には${relatedTasks.length}個のタスクが関連付けられています。\nプロジェクトを削除すると、関連するタスクも削除されます。\n\n本当に削除しますか？`)) {
+            if (!confirm(`案件「${project.name}」には${relatedTasks.length}個のタスクが関連付けられています。\n案件を削除すると、関連するタスクも削除されます。\n\n本当に削除しますか？`)) {
                 return;
             }
         } else {
-            if (!confirm(`プロジェクト「${project.name}」を削除しますか？`)) {
+            if (!confirm(`案件「${project.name}」を削除しますか？`)) {
                 return;
             }
         }
@@ -1126,13 +1126,13 @@
                 await DB_OPERATIONS.deleteTask(task.id);
             }
             
-            // プロジェクトを削除
+            // 案件を削除
             await DB_OPERATIONS.deleteProject(projectId);
             
-            showNotification(`プロジェクト「${project.name}」を削除しました`, 'success');
+            showNotification(`案件「${project.name}」を削除しました`, 'success');
         } catch (error) {
-            console.error('プロジェクト削除エラー:', error);
-            showNotification('プロジェクトの削除に失敗しました', 'error');
+            console.error('案件削除エラー:', error);
+            showNotification('案件の削除に失敗しました', 'error');
             throw error;
         }
     }
@@ -1331,7 +1331,7 @@
         const projectSelect = document.getElementById('daily-task-project');
         const assigneeSelect = document.getElementById('daily-task-assignee');
         
-        // プロジェクト選択肢
+        // 案件選択肢
         projectSelect.innerHTML = '<option value="">選択してください</option>';
         projects.forEach(project => {
             const option = document.createElement('option');
@@ -1604,7 +1604,7 @@
         const projectSelect = document.getElementById('task-project');
         const assigneeSelect = document.getElementById('task-assignee');
         
-        // プロジェクト選択肢
+        // 案件選択肢
         projectSelect.innerHTML = '<option value="">選択してください</option>';
         projects.forEach(project => {
             const option = document.createElement('option');
@@ -1627,7 +1627,7 @@
         const container = document.getElementById('projects-list');
         
         if (projects.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-folder"></i><p>プロジェクトが登録されていません</p></div>';
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-folder"></i><p>案件が登録されていません</p></div>';
             return;
         }
         
@@ -1703,7 +1703,7 @@
 
     function getProjectName(projectId) {
         const project = projects.find(p => p.id === projectId);
-        return project ? project.name : '不明なプロジェクト';
+        return project ? project.name : '不明な案件';
     }
 
     function formatDateTimeLocal(dateString) {
