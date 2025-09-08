@@ -230,7 +230,7 @@
                     },
                     {
                         name: '佐藤花子',
-                        role: 'フロントエンドエンジニア',
+                        role: 'アドミ',
                         color: '#4ecdc4'
                     },
                     {
@@ -274,7 +274,7 @@
                 {
                     id: 'member-2',
                     name: '佐藤花子',
-                    role: 'フロントエンドエンジニア',
+                    role: 'アドミ',
                     color: '#4ecdc4',
                     createdAt: new Date().toISOString()
                 },
