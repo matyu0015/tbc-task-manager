@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TBCチームタスク管理</title>
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -918,18 +918,148 @@
             .container {
                 padding: 10px;
             }
+            
+            .header {
+                padding: 15px 10px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+                text-align: center;
+            }
 
             .controls {
                 flex-direction: column;
                 align-items: stretch;
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .controls .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 12px;
+                font-size: 16px;
             }
 
             .filters {
                 justify-content: center;
+                flex-direction: column;
+                gap: 10px;
             }
 
             .form-row {
                 grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            /* カレンダーのモバイル対応 */
+            #calendar {
+                font-size: 12px;
+            }
+            
+            /* モーダルのモバイル対応 */
+            .modal-content {
+                width: 95%;
+                margin: 10px;
+                max-height: 90vh;
+            }
+            
+            .modal-header, .modal-footer {
+                padding: 15px;
+            }
+            
+            .modal-body {
+                padding: 15px;
+            }
+            
+            /* サイドバーのモバイル対応 */
+            .sidebar {
+                padding: 15px;
+            }
+            
+            .sidebar h3 {
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+            
+            /* タスクリストのモバイル対応 */
+            .task-item {
+                padding: 12px;
+                margin-bottom: 10px;
+            }
+            
+            .task-item h4 {
+                font-size: 14px;
+            }
+            
+            /* ボタンのタッチ対応 */
+            .btn {
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+            
+            /* メンバーセクションのモバイル対応 */
+            .member-section {
+                margin-bottom: 20px;
+            }
+            
+            .member-header {
+                padding: 12px;
+                font-size: 16px;
+            }
+        }
+        
+        /* 更に小さい画面（iPhone SE など）用 */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .container {
+                padding: 5px;
+            }
+            
+            .controls {
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .controls .btn {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .modal-content {
+                width: 98%;
+                margin: 5px;
+            }
+            
+            .form-group label {
+                font-size: 14px;
+            }
+            
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 10px;
+                font-size: 16px; /* iOS のズーム防止 */
+            }
+            
+            /* カレンダーの更なる最適化 */
+            .fc-toolbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .fc-toolbar-chunk {
+                display: flex;
+                justify-content: center;
+            }
+            
+            .fc-button {
+                padding: 8px 12px;
+                font-size: 12px;
             }
         }
     </style>
