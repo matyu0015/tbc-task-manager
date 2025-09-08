@@ -364,6 +364,63 @@
         });
     }
 
+    // プロジェクトオプションを更新
+    function updateProjectOptions() {
+        // プロジェクトフィルター更新
+        const projectFilter = document.getElementById('project-filter');
+        if (projectFilter) {
+            const currentValue = projectFilter.value;
+            projectFilter.innerHTML = '<option value="">すべてのプロジェクト</option>';
+            projects.forEach(project => {
+                projectFilter.innerHTML += `<option value="${project.name}">${project.name}</option>`;
+            });
+            if (currentValue && projects.find(p => p.name === currentValue)) {
+                projectFilter.value = currentValue;
+            }
+        }
+
+        // タスク追加用プロジェクト選択更新
+        const taskProject = document.getElementById('task-project');
+        if (taskProject) {
+            const currentValue = taskProject.value;
+            taskProject.innerHTML = '<option value="">プロジェクトを選択</option>';
+            projects.forEach(project => {
+                taskProject.innerHTML += `<option value="${project.name}">${project.name}</option>`;
+            });
+            if (currentValue && projects.find(p => p.name === currentValue)) {
+                taskProject.value = currentValue;
+            }
+        }
+
+        // デイリータスク追加用プロジェクト選択更新
+        const dailyTaskProject = document.getElementById('daily-task-project');
+        if (dailyTaskProject) {
+            const currentValue = dailyTaskProject.value;
+            dailyTaskProject.innerHTML = '<option value="">プロジェクトを選択</option>';
+            projects.forEach(project => {
+                dailyTaskProject.innerHTML += `<option value="${project.name}">${project.name}</option>`;
+            });
+            if (currentValue && projects.find(p => p.name === currentValue)) {
+                dailyTaskProject.value = currentValue;
+            }
+        }
+    }
+
+    // メンバーオプションを更新
+    function updateMemberOptions() {
+        const memberFilter = document.getElementById('member-filter');
+        if (memberFilter) {
+            const currentValue = memberFilter.value;
+            memberFilter.innerHTML = '<option value="">すべてのメンバー</option>';
+            members.forEach(member => {
+                memberFilter.innerHTML += `<option value="${member.name}">${member.name}</option>`;
+            });
+            if (currentValue && members.find(m => m.name === currentValue)) {
+                memberFilter.value = currentValue;
+            }
+        }
+    }
+
     // データ保存（下位互換のため残すが、Firestoreでは自動保存される）
     function saveData() {
         // Firestore環境では自動保存されるため、何もしない
