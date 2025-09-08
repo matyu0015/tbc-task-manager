@@ -1138,7 +1138,7 @@
     }
 
     // メンバー削除
-    window.deleteMember = function(memberId) {
+    window.deleteMember = async function(memberId) {
         const member = members.find(m => m.id === memberId);
         if (!member) return;
 
@@ -1149,29 +1149,47 @@
                 return;
             }
             
-            // 関連するタスクの担当者をクリア
-            tasks.forEach(task => {
-                if (task.assigneeId === memberId) {
-                    task.assigneeId = null;
+            try {
+                // 関連するタスクの担当者をクリア（Firestoreに反映）
+                for (const task of relatedTasks) {
+                    if (window.db) {
+                        await db.collection('tasks').doc(task.id).update({
+                            assigneeId: null
+                        });
+                    }
                 }
-            });
+            } catch (error) {
+                console.error('タスク担当者更新エラー:', error);
+                showNotification('タスクの担当者更新に失敗しました', 'error');
+                return;
+            }
         } else {
             if (!confirm(`メンバー「${member.name}」を削除しますか？`)) {
                 return;
             }
         }
 
-        // メンバーを削除
-        members = members.filter(m => m.id !== memberId);
-        saveData();
-        updateMemberManagementList();
-        updateTeamMembers();
-        updateFilters();
-        updateTodayTasks();
-        updatePeriodTasks();
-        updateCalendar();
-        
-        showNotification(`メンバー「${member.name}」を削除しました`, 'success');
+        try {
+            // Firestoreからメンバーを削除
+            if (window.db) {
+                await db.collection('members').doc(memberId).delete();
+            } else {
+                // ローカル環境では従来の処理
+                members = members.filter(m => m.id !== memberId);
+                saveData();
+                updateMemberManagementList();
+                updateTeamMembers();
+                updateFilters();
+                updateTodayTasks();
+                updatePeriodTasks();
+                updateCalendar();
+            }
+            
+            showNotification(`メンバー「${member.name}」を削除しました`, 'success');
+        } catch (error) {
+            console.error('メンバー削除エラー:', error);
+            showNotification('メンバーの削除に失敗しました', 'error');
+        }
     };
 
     // タスク削除
