@@ -6,6 +6,10 @@
     <title>TBCチームタスク管理</title>
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -1273,6 +1277,27 @@
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZGRIwa4yFLn7PFGamQNALdhxpWeKiR7M",
+            authDomain: "tbc-task-manage.firebaseapp.com",
+            projectId: "tbc-task-manage",
+            storageBucket: "tbc-task-manage.firebasestorage.app",
+            messagingSenderId: "33594880684",
+            appId: "1:33594880684:web:cef7811ed3c7a8a099e509"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Initialize Firestore
+        const db = firebase.firestore();
+        
+        console.log('Firebase initialized successfully');
+    </script>
+    
     <script src="js/app.js"></script>
 </body>
 </html>

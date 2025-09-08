@@ -11,110 +11,352 @@
     let currentPeriodOffset = 0; // 0=今週/今月, -1=先週/先月, 1=来週/来月
 
     // 初期化
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeData();
-        initializeCalendar();
-        setupEventListeners();
-        loadDashboard();
-        setupPeriodControls();
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            await initializeData();
+            initializeCalendar();
+            setupEventListeners();
+            loadDashboard();
+            setupPeriodControls();
+            console.log('アプリケーション初期化完了');
+        } catch (error) {
+            console.error('初期化エラー:', error);
+            // エラー時はローカルデータで起動
+            tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            projects = JSON.parse(localStorage.getItem('projects')) || [];
+            members = JSON.parse(localStorage.getItem('members')) || [];
+            initializeCalendar();
+            setupEventListeners();
+            loadDashboard();
+            setupPeriodControls();
+        }
     });
 
-    // 初期データ設定
-    function initializeData() {
-        // LocalStorageから既存データを読み込み
-        tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-        projects = JSON.parse(localStorage.getItem('projects')) || [
-            {
-                id: 'project-1',
-                name: 'Webサイト制作',
-                color: '#667eea',
-                createdAt: new Date().toISOString()
-            },
-            {
-                id: 'project-2',
-                name: 'モバイルアプリ開発',
-                color: '#10ac84',
-                createdAt: new Date().toISOString()
+    // Firestore データベース操作関数
+    const DB_OPERATIONS = {
+        // タスク操作
+        async getTasks() {
+            try {
+                const snapshot = await db.collection('tasks').orderBy('createdAt', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('タスク取得エラー:', error);
+                return [];
             }
-        ];
-        members = JSON.parse(localStorage.getItem('members')) || [
-            {
-                id: 'member-1',
-                name: '田中太郎',
-                role: 'プロジェクトマネージャー',
-                color: '#ff6b6b',
-                createdAt: new Date().toISOString()
-            },
-            {
-                id: 'member-2',
-                name: '佐藤花子',
-                role: 'フロントエンドエンジニア',
-                color: '#4ecdc4',
-                createdAt: new Date().toISOString()
-            },
-            {
-                id: 'member-3',
-                name: '鈴木一郎',
-                role: 'バックエンドエンジニア',
-                color: '#45b7d1',
-                createdAt: new Date().toISOString()
+        },
+        
+        async saveTask(task) {
+            try {
+                if (task.id && task.id.startsWith('task-')) {
+                    // 新規作成
+                    delete task.id;
+                    const docRef = await db.collection('tasks').add({
+                        ...task,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                } else if (task.id) {
+                    // 更新
+                    await db.collection('tasks').doc(task.id).update({
+                        ...task,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return task.id;
+                } else {
+                    // 新規作成（IDなし）
+                    const docRef = await db.collection('tasks').add({
+                        ...task,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                }
+            } catch (error) {
+                console.error('タスク保存エラー:', error);
+                throw error;
             }
-        ];
+        },
+        
+        async deleteTask(taskId) {
+            try {
+                await db.collection('tasks').doc(taskId).delete();
+            } catch (error) {
+                console.error('タスク削除エラー:', error);
+                throw error;
+            }
+        },
+        
+        // プロジェクト操作
+        async getProjects() {
+            try {
+                const snapshot = await db.collection('projects').orderBy('createdAt', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('プロジェクト取得エラー:', error);
+                return [];
+            }
+        },
+        
+        async saveProject(project) {
+            try {
+                if (project.id && project.id.startsWith('project-')) {
+                    delete project.id;
+                    const docRef = await db.collection('projects').add({
+                        ...project,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                } else if (project.id) {
+                    await db.collection('projects').doc(project.id).update(project);
+                    return project.id;
+                } else {
+                    const docRef = await db.collection('projects').add({
+                        ...project,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                }
+            } catch (error) {
+                console.error('プロジェクト保存エラー:', error);
+                throw error;
+            }
+        },
+        
+        async deleteProject(projectId) {
+            try {
+                await db.collection('projects').doc(projectId).delete();
+            } catch (error) {
+                console.error('プロジェクト削除エラー:', error);
+                throw error;
+            }
+        },
+        
+        // メンバー操作
+        async getMembers() {
+            try {
+                const snapshot = await db.collection('members').orderBy('createdAt', 'desc').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('メンバー取得エラー:', error);
+                return [];
+            }
+        },
+        
+        async saveMember(member) {
+            try {
+                if (member.id && member.id.startsWith('member-')) {
+                    delete member.id;
+                    const docRef = await db.collection('members').add({
+                        ...member,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                } else if (member.id) {
+                    await db.collection('members').doc(member.id).update(member);
+                    return member.id;
+                } else {
+                    const docRef = await db.collection('members').add({
+                        ...member,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                }
+            } catch (error) {
+                console.error('メンバー保存エラー:', error);
+                throw error;
+            }
+        },
+        
+        async deleteMember(memberId) {
+            try {
+                await db.collection('members').doc(memberId).delete();
+            } catch (error) {
+                console.error('メンバー削除エラー:', error);
+                throw error;
+            }
+        }
+    };
 
-        // 初回起動時のサンプルタスク
-        if (tasks.length === 0) {
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
+    // 初期データ設定
+    async function initializeData() {
+        try {
+            // Firestoreから既存データを読み込み
+            tasks = await DB_OPERATIONS.getTasks();
+            projects = await DB_OPERATIONS.getProjects();
+            members = await DB_OPERATIONS.getMembers();
             
-            tasks = [
+            // 初回起動時のサンプルデータ作成
+            if (projects.length === 0) {
+                const defaultProjects = [
+                    {
+                        name: 'Webサイト制作',
+                        color: '#667eea'
+                    },
+                    {
+                        name: 'モバイルアプリ開発',
+                        color: '#10ac84'
+                    }
+                ];
+                
+                for (const project of defaultProjects) {
+                    const projectId = await DB_OPERATIONS.saveProject(project);
+                    projects.push({ id: projectId, ...project });
+                }
+            }
+            
+            if (members.length === 0) {
+                const defaultMembers = [
+                    {
+                        name: '田中太郎',
+                        role: 'プロジェクトマネージャー',
+                        color: '#ff6b6b'
+                    },
+                    {
+                        name: '佐藤花子',
+                        role: 'フロントエンドエンジニア',
+                        color: '#4ecdc4'
+                    },
+                    {
+                        name: '鈴木一郎',
+                        role: 'バックエンドエンジニア',
+                        color: '#45b7d1'
+                    }
+                ];
+                
+                for (const member of defaultMembers) {
+                    const memberId = await DB_OPERATIONS.saveMember(member);
+                    members.push({ id: memberId, ...member });
+                }
+            }
+        } catch (error) {
+            console.error('初期化エラー:', error);
+            // フォールバック: LocalStorageから読み込み
+            tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            projects = JSON.parse(localStorage.getItem('projects')) || [
                 {
-                    id: 'task-1',
-                    title: 'プロジェクト企画書作成',
-                    description: 'クライアント向けの企画書を作成する',
-                    projectId: 'project-1',
-                    assigneeId: 'member-1',
-                    priority: '高',
-                    status: '進行中',
-                    start: today.toISOString(),
-                    end: null,
+                    id: 'project-1',
+                    name: 'Webサイト制作',
+                    color: '#667eea',
                     createdAt: new Date().toISOString()
                 },
                 {
-                    id: 'task-2',
-                    title: 'UIデザイン作成',
-                    description: 'トップページのUIデザインを作成',
-                    projectId: 'project-1',
-                    assigneeId: 'member-2',
-                    priority: '中',
-                    status: '未着手',
-                    start: tomorrow.toISOString(),
-                    end: null,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    id: 'task-3',
-                    title: 'API設計',
-                    description: 'RESTful APIの設計と仕様書作成',
-                    projectId: 'project-2',
-                    assigneeId: 'member-3',
-                    priority: '高',
-                    status: '完了',
-                    start: today.toISOString(),
-                    end: null,
+                    id: 'project-2',
+                    name: 'モバイルアプリ開発',
+                    color: '#10ac84',
                     createdAt: new Date().toISOString()
                 }
             ];
+            members = JSON.parse(localStorage.getItem('members')) || [
+                {
+                    id: 'member-1',
+                    name: '田中太郎',
+                    role: 'プロジェクトマネージャー',
+                    color: '#ff6b6b',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 'member-2',
+                    name: '佐藤花子',
+                    role: 'フロントエンドエンジニア',
+                    color: '#4ecdc4',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 'member-3',
+                    name: '鈴木一郎',
+                    role: 'バックエンドエンジニア',
+                    color: '#45b7d1',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+
+            // 初回起動時のサンプルタスク
+            if (tasks.length === 0) {
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+                
+                tasks = [
+                    {
+                        id: 'task-1',
+                        title: 'プロジェクト企画書作成',
+                        description: 'クライアント向けの企画書を作成する',
+                        projectId: 'project-1',
+                        assigneeId: 'member-1',
+                        priority: '高',
+                        status: '進行中',
+                        start: today.toISOString(),
+                        end: null,
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'task-2',
+                        title: 'UIデザイン作成',
+                        description: 'トップページのUIデザインを作成',
+                        projectId: 'project-1',
+                        assigneeId: 'member-2',
+                        priority: '中',
+                        status: '未着手',
+                        start: tomorrow.toISOString(),
+                        end: null,
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'task-3',
+                        title: 'API設計',
+                        description: 'RESTful APIの設計と仕様書作成',
+                        projectId: 'project-2',
+                        assigneeId: 'member-3',
+                        priority: '高',
+                        status: '完了',
+                        start: today.toISOString(),
+                        end: null,
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+            }
         }
 
-        saveData();
+        // 初期化完了後にリアルタイム更新をセットアップ
+        setupRealtimeUpdates();
     }
 
-    // データ保存
+    // リアルタイム更新の設定
+    function setupRealtimeUpdates() {
+        if (!window.db) return;
+        
+        // タスクのリアルタイム更新
+        db.collection('tasks').onSnapshot((snapshot) => {
+            tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateCalendar();
+            loadDashboard();
+        });
+        
+        // プロジェクトのリアルタイム更新
+        db.collection('projects').onSnapshot((snapshot) => {
+            projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateProjectOptions();
+            loadDashboard();
+        });
+        
+        // メンバーのリアルタイム更新
+        db.collection('members').onSnapshot((snapshot) => {
+            members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateMemberOptions();
+            loadDashboard();
+        });
+    }
+
+    // データ保存（下位互換のため残すが、Firestoreでは自動保存される）
     function saveData() {
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-        localStorage.setItem('projects', JSON.stringify(projects));
-        localStorage.setItem('members', JSON.stringify(members));
+        // Firestore環境では自動保存されるため、何もしない
+        // ローカル環境での下位互換として残す
+        if (!window.db) {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            localStorage.setItem('projects', JSON.stringify(projects));
+            localStorage.setItem('members', JSON.stringify(members));
+        }
     }
 
     // カレンダー初期化
@@ -631,7 +873,7 @@
     };
 
     // タスク保存
-    window.saveTask = function() {
+    window.saveTask = async function() {
         const name = document.getElementById('task-name').value.trim();
         const projectId = document.getElementById('task-project').value;
         const assigneeId = document.getElementById('task-assignee').value;
@@ -646,46 +888,39 @@
             return;
         }
         
-        if (currentTaskId) {
-            // 編集
-            const task = tasks.find(t => t.id === currentTaskId);
-            if (task) {
-                task.title = name;
-                task.projectId = projectId;
-                task.assigneeId = assigneeId;
-                task.description = description;
-                task.start = new Date(start).toISOString();
-                task.end = end ? new Date(end).toISOString() : null;
-                task.priority = priority;
-                task.status = status;
-            }
-            showNotification('タスクを更新しました', 'success');
-        } else {
-            // 新規作成
-            const newTask = {
-                id: 'task-' + Date.now(),
-                title: name,
-                projectId: projectId,
-                assigneeId: assigneeId,
-                description: description,
-                start: new Date(start).toISOString(),
-                end: end ? new Date(end).toISOString() : null,
-                priority: priority,
-                status: status,
-                createdAt: new Date().toISOString()
-            };
-            tasks.push(newTask);
-            showNotification('タスクを作成しました', 'success');
-        }
+        const taskData = {
+            title: name,
+            projectId: projectId,
+            assigneeId: assigneeId,
+            description: description,
+            start: new Date(start).toISOString(),
+            end: end ? new Date(end).toISOString() : null,
+            priority: priority,
+            status: status
+        };
         
-        saveData();
-        updateCalendar();
-        updateTeamMembers();
-        closeModal('task-modal');
+        try {
+            if (currentTaskId) {
+                // 編集
+                taskData.id = currentTaskId;
+                await DB_OPERATIONS.saveTask(taskData);
+                showNotification('タスクを更新しました', 'success');
+            } else {
+                // 新規作成
+                await DB_OPERATIONS.saveTask(taskData);
+                showNotification('タスクを作成しました', 'success');
+            }
+            
+            closeModal('task-modal');
+            currentTaskId = null;
+        } catch (error) {
+            console.error('タスク保存エラー:', error);
+            showNotification('タスクの保存に失敗しました', 'error');
+        }
     };
 
     // プロジェクト追加
-    window.addProject = function() {
+    window.addProject = async function() {
         const name = document.getElementById('new-project-name').value.trim();
         const color = document.getElementById('project-color').value;
         
@@ -694,24 +929,23 @@
             return;
         }
         
-        const newProject = {
-            id: 'project-' + Date.now(),
-            name: name,
-            color: color,
-            createdAt: new Date().toISOString()
-        };
-        
-        projects.push(newProject);
-        saveData();
-        updateFilters();
-        updateProjectsList();
-        
-        document.getElementById('new-project-name').value = '';
-        showNotification('プロジェクトを追加しました', 'success');
+        try {
+            const projectData = {
+                name: name,
+                color: color
+            };
+            
+            await DB_OPERATIONS.saveProject(projectData);
+            document.getElementById('new-project-name').value = '';
+            showNotification('プロジェクトを追加しました', 'success');
+        } catch (error) {
+            console.error('プロジェクト追加エラー:', error);
+            showNotification('プロジェクトの追加に失敗しました', 'error');
+        }
     };
 
     // メンバー追加
-    window.addMember = function() {
+    window.addMember = async function() {
         const name = document.getElementById('new-member-name').value.trim();
         const role = document.getElementById('member-role').value.trim();
         
@@ -720,26 +954,26 @@
             return;
         }
         
-        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
-        const color = colors[members.length % colors.length];
-        
-        const newMember = {
-            id: 'member-' + Date.now(),
-            name: name,
-            role: role || 'メンバー',
-            color: color,
-            createdAt: new Date().toISOString()
-        };
-        
-        members.push(newMember);
-        saveData();
-        loadDashboard();
-        setupDragAndDrop(); // ドロップゾーンを再設定
-        
-        document.getElementById('new-member-name').value = '';
-        document.getElementById('member-role').value = '';
-        showNotification('メンバーを追加しました', 'success');
-        closeModal('member-modal');
+        try {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
+            const color = colors[members.length % colors.length];
+            
+            const memberData = {
+                name: name,
+                role: role || 'メンバー',
+                color: color
+            };
+            
+            await DB_OPERATIONS.saveMember(memberData);
+            
+            document.getElementById('new-member-name').value = '';
+            document.getElementById('member-role').value = '';
+            showNotification('メンバーを追加しました', 'success');
+            closeModal('member-modal');
+        } catch (error) {
+            console.error('メンバー追加エラー:', error);
+            showNotification('メンバーの追加に失敗しました', 'error');
+        }
     };
 
     // メンバー管理モーダル
@@ -750,7 +984,7 @@
     };
 
     // プロジェクト削除
-    window.deleteProject = function(projectId) {
+    window.deleteProject = async function(projectId) {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
 
@@ -760,26 +994,26 @@
             if (!confirm(`プロジェクト「${project.name}」には${relatedTasks.length}個のタスクが関連付けられています。\nプロジェクトを削除すると、関連するタスクも削除されます。\n\n本当に削除しますか？`)) {
                 return;
             }
-            
-            // 関連するタスクも削除
-            tasks = tasks.filter(task => task.projectId !== projectId);
         } else {
             if (!confirm(`プロジェクト「${project.name}」を削除しますか？`)) {
                 return;
             }
         }
 
-        // プロジェクトを削除
-        projects = projects.filter(p => p.id !== projectId);
-        saveData();
-        updateProjectsList();
-        updateFilters();
-        updateCalendar();
-        updateTeamMembers();
-        updateTodayTasks();
-        updatePeriodTasks();
-        
-        showNotification(`プロジェクト「${project.name}」を削除しました`, 'success');
+        try {
+            // 関連するタスクも削除
+            for (const task of relatedTasks) {
+                await DB_OPERATIONS.deleteTask(task.id);
+            }
+            
+            // プロジェクトを削除
+            await DB_OPERATIONS.deleteProject(projectId);
+            
+            showNotification(`プロジェクト「${project.name}」を削除しました`, 'success');
+        } catch (error) {
+            console.error('プロジェクト削除エラー:', error);
+            showNotification('プロジェクトの削除に失敗しました', 'error');
+        }
     };
 
     // メンバー削除
