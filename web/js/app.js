@@ -493,34 +493,44 @@
         const memberFilter = document.getElementById('member-filter');
         const todayMemberFilter = document.getElementById('today-member-filter');
         
-        // プロジェクトフィルター
-        projectFilter.innerHTML = '<option value="">全プロジェクト</option>';
-        projects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project.id;
-            option.textContent = project.name;
-            projectFilter.appendChild(option);
-        });
+        // プロジェクトフィルター（要素が存在する場合のみ）
+        if (projectFilter) {
+            projectFilter.innerHTML = '<option value="">全プロジェクト</option>';
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = project.name;
+                projectFilter.appendChild(option);
+            });
+        }
         
-        // メンバーフィルター
-        memberFilter.innerHTML = '<option value="">全メンバー</option>';
-        todayMemberFilter.innerHTML = '<option value="">全メンバー</option>';
-        members.forEach(member => {
-            const option1 = document.createElement('option');
-            option1.value = member.id;
-            option1.textContent = member.name;
-            memberFilter.appendChild(option1);
-            
-            const option2 = document.createElement('option');
-            option2.value = member.id;
-            option2.textContent = member.name;
-            todayMemberFilter.appendChild(option2);
-        });
+        // メンバーフィルター（要素が存在する場合のみ）
+        if (memberFilter) {
+            memberFilter.innerHTML = '<option value="">全メンバー</option>';
+            members.forEach(member => {
+                const option1 = document.createElement('option');
+                option1.value = member.id;
+                option1.textContent = member.name;
+                memberFilter.appendChild(option1);
+            });
+        }
+        
+        if (todayMemberFilter) {
+            todayMemberFilter.innerHTML = '<option value="">全メンバー</option>';
+            members.forEach(member => {
+                const option2 = document.createElement('option');
+                option2.value = member.id;
+                option2.textContent = member.name;
+                todayMemberFilter.appendChild(option2);
+            });
+        }
     }
 
     // チームメンバー表示更新
     function updateTeamMembers() {
         const container = document.getElementById('team-members');
+        
+        if (!container) return; // 要素が存在しない場合は早期リターン
         
         if (members.length === 0) {
             container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>メンバーが登録されていません</p></div>';
@@ -564,6 +574,8 @@
     // 今日のタスク表示更新（担当者別）
     function updateTodayTasks() {
         const container = document.getElementById('today-tasks-by-member');
+        if (!container) return; // 要素が存在しない場合は早期リターン
+        
         const todayTasks = getTodayTasks();
         
         if (members.length === 0) {
