@@ -1,0 +1,151 @@
+#calendar-container {
+    margin: 20px 0;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+#calendar-controls {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 15px;
+}
+
+.filter-controls select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+#refresh-calendar {
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+#refresh-calendar:hover {
+    background: #0056b3;
+}
+
+#calendar {
+    padding: 20px;
+}
+
+.fc-event {
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.fc-event:hover {
+    opacity: 0.8;
+}
+
+.fc-event.status-未着手 {
+    opacity: 0.7;
+    border-left: 4px solid #dc3545;
+}
+
+.fc-event.status-進行中 {
+    border-left: 4px solid #ffc107;
+}
+
+.fc-event.status-完了 {
+    opacity: 0.6;
+    text-decoration: line-through;
+    border-left: 4px solid #28a745;
+}
+
+.fc-event.priority-高 {
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.fc-event.priority-中 {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.fc-event.priority-低 {
+    opacity: 0.8;
+}
+
+.fc-event.task-type-デイリー::before {
+    content: "🔄 ";
+    font-size: 10px;
+}
+
+.fc-event.task-type-単発::before {
+    content: "📋 ";
+    font-size: 10px;
+}
+
+.fc-daygrid-event {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fc-event-dragging {
+    opacity: 0.5;
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    #calendar-controls {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .filter-controls {
+        justify-content: center;
+    }
+    
+    .filter-controls select {
+        flex: 1;
+        max-width: 150px;
+    }
+}
+
+.fc-toolbar-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+}
+
+.fc-button {
+    background: #6c757d;
+    border-color: #6c757d;
+}
+
+.fc-button:hover {
+    background: #5a6268;
+    border-color: #545b62;
+}
+
+.fc-button-primary {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+.fc-button-primary:hover {
+    background: #0056b3;
+    border-color: #004085;
+}
