@@ -8,8 +8,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -1280,22 +1280,39 @@
     
     <!-- Firebase Configuration -->
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDZGRIwa4yFLn7PFGamQNALdhxpWeKiR7M",
-            authDomain: "tbc-task-manage.firebaseapp.com",
-            projectId: "tbc-task-manage",
-            storageBucket: "tbc-task-manage.firebasestorage.app",
-            messagingSenderId: "33594880684",
-            appId: "1:33594880684:web:cef7811ed3c7a8a099e509"
-        };
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // Initialize Firestore
-        const db = firebase.firestore();
-        
-        console.log('Firebase initialized successfully');
+        // Firebase初期化を確実に実行
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyDZGRIwa4yFLn7PFGamQNALdhxpWeKiR7M",
+                authDomain: "tbc-task-manage.firebaseapp.com",
+                projectId: "tbc-task-manage",
+                storageBucket: "tbc-task-manage.firebasestorage.app",
+                messagingSenderId: "33594880684",
+                appId: "1:33594880684:web:cef7811ed3c7a8a099e509"
+            };
+            
+            // Firebase SDKが読み込まれているか確認
+            if (typeof firebase === 'undefined') {
+                throw new Error('Firebase SDK が読み込まれていません');
+            }
+            
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            
+            // Initialize Firestore
+            const db = firebase.firestore();
+            
+            // グローバルに設定
+            window.db = db;
+            window.firebase = firebase;
+            
+            console.log('Firebase initialized successfully');
+            console.log('Database object:', db);
+        } catch (error) {
+            console.error('Firebase初期化エラー:', error);
+            console.warn('Firebaseが利用できません。ローカルストレージモードで動作します。');
+            window.db = null;
+        }
     </script>
     
     <script src="js/app.js"></script>
