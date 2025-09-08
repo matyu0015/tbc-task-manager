@@ -37,6 +37,10 @@
         // タスク操作
         async getTasks() {
             try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    return [];
+                }
                 const snapshot = await db.collection('tasks').orderBy('createdAt', 'desc').get();
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (error) {
@@ -47,6 +51,10 @@
         
         async saveTask(task) {
             try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    throw new Error('データベースが初期化されていません');
+                }
                 if (task.id && task.id.startsWith('task-')) {
                     // 新規作成
                     delete task.id;
@@ -100,6 +108,10 @@
         
         async saveProject(project) {
             try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    throw new Error('データベースが初期化されていません');
+                }
                 if (project.id && project.id.startsWith('project-')) {
                     delete project.id;
                     const docRef = await db.collection('projects').add({
@@ -145,6 +157,10 @@
         
         async saveMember(member) {
             try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    throw new Error('データベースが初期化されていません');
+                }
                 if (member.id && member.id.startsWith('member-')) {
                     delete member.id;
                     const docRef = await db.collection('members').add({
@@ -872,8 +888,16 @@
         document.getElementById(modalId).classList.remove('show');
     };
 
-    // タスク保存
-    window.saveTask = async function() {
+    // タスク保存（非同期ラッパー）
+    window.saveTask = function() {
+        saveTaskAsync().catch(error => {
+            console.error('タスク保存エラー:', error);
+            showNotification('タスクの保存に失敗しました', 'error');
+        });
+    };
+    
+    // タスク保存（実際の処理）
+    async function saveTaskAsync() {
         const name = document.getElementById('task-name').value.trim();
         const projectId = document.getElementById('task-project').value;
         const assigneeId = document.getElementById('task-assignee').value;
@@ -916,11 +940,20 @@
         } catch (error) {
             console.error('タスク保存エラー:', error);
             showNotification('タスクの保存に失敗しました', 'error');
+            throw error;
         }
-    };
+    }
 
-    // プロジェクト追加
-    window.addProject = async function() {
+    // プロジェクト追加（非同期ラッパー）
+    window.addProject = function() {
+        addProjectAsync().catch(error => {
+            console.error('プロジェクト追加エラー:', error);
+            showNotification('プロジェクトの追加に失敗しました', 'error');
+        });
+    };
+    
+    // プロジェクト追加（実際の処理）
+    async function addProjectAsync() {
         const name = document.getElementById('new-project-name').value.trim();
         const color = document.getElementById('project-color').value;
         
@@ -941,11 +974,20 @@
         } catch (error) {
             console.error('プロジェクト追加エラー:', error);
             showNotification('プロジェクトの追加に失敗しました', 'error');
+            throw error;
         }
-    };
+    }
 
-    // メンバー追加
-    window.addMember = async function() {
+    // メンバー追加（非同期ラッパー）
+    window.addMember = function() {
+        addMemberAsync().catch(error => {
+            console.error('メンバー追加エラー:', error);
+            showNotification('メンバーの追加に失敗しました', 'error');
+        });
+    };
+    
+    // メンバー追加（実際の処理）
+    async function addMemberAsync() {
         const name = document.getElementById('new-member-name').value.trim();
         const role = document.getElementById('member-role').value.trim();
         
@@ -973,8 +1015,9 @@
         } catch (error) {
             console.error('メンバー追加エラー:', error);
             showNotification('メンバーの追加に失敗しました', 'error');
+            throw error;
         }
-    };
+    }
 
     // メンバー管理モーダル
     window.openMemberManagementModal = function() {
@@ -983,8 +1026,16 @@
         modal.classList.add('show');
     };
 
-    // プロジェクト削除
-    window.deleteProject = async function(projectId) {
+    // プロジェクト削除（非同期ラッパー）
+    window.deleteProject = function(projectId) {
+        deleteProjectAsync(projectId).catch(error => {
+            console.error('プロジェクト削除エラー:', error);
+            showNotification('プロジェクトの削除に失敗しました', 'error');
+        });
+    };
+    
+    // プロジェクト削除（実際の処理）
+    async function deleteProjectAsync(projectId) {
         const project = projects.find(p => p.id === projectId);
         if (!project) return;
 
@@ -1013,8 +1064,9 @@
         } catch (error) {
             console.error('プロジェクト削除エラー:', error);
             showNotification('プロジェクトの削除に失敗しました', 'error');
+            throw error;
         }
-    };
+    }
 
     // メンバー削除
     window.deleteMember = function(memberId) {
