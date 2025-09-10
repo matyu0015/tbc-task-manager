@@ -395,6 +395,53 @@
             background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
 
+        /* クロスチーム移動用スタイル */
+        .cross-team-target {
+            border-color: #ffc107 !important;
+            background: rgba(255, 193, 7, 0.1);
+            position: relative;
+        }
+
+        .cross-team-target::before {
+            content: "チーム間移動";
+            position: absolute;
+            top: -8px;
+            right: 10px;
+            background: #ffc107;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+        }
+
+        .cross-team-target.drag-over {
+            border-color: #ff8f00 !important;
+            background: rgba(255, 143, 0, 0.15);
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        .cross-team-target.drag-over .member-header {
+            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+        }
+
+        .same-team-target {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+
+        .same-team-target.drag-over {
+            border-color: #20c997;
+            background: rgba(32, 201, 151, 0.1);
+        }
+
+        .same-team-target.drag-over .member-header {
+            background: linear-gradient(135deg, #e8f5e8 0%, #c3e6cb 100%);
+        }
+
         .period-tasks-section {
             background: white;
             border-radius: 12px;

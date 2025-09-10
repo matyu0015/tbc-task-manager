@@ -1028,10 +1028,23 @@
         e.target.classList.add('dragging');
         e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
         
-        // 他のメンバーセクションをドロップ可能にする
+        const taskId = e.target.dataset.taskId;
+        const currentMemberId = getTaskCurrentAssignee(taskId);
+        const currentMember = members.find(m => m.id === currentMemberId);
+        
+        // 他のメンバーセクションをドロップ可能にし、チーム状態で視覚的に区別
         document.querySelectorAll('.member-section').forEach(section => {
-            if (section.dataset.memberId !== getTaskCurrentAssignee(e.target.dataset.taskId)) {
+            const targetMemberId = section.dataset.memberId;
+            if (targetMemberId !== currentMemberId) {
+                const targetMember = members.find(m => m.id === targetMemberId);
                 section.classList.add('drop-target');
+                
+                // チーム間移動の場合は異なるスタイルを適用
+                if (isTaskMovingAcrossTeams(currentMember, targetMember)) {
+                    section.classList.add('cross-team-target');
+                } else {
+                    section.classList.add('same-team-target');
+                }
             }
         });
     }
@@ -1042,7 +1055,7 @@
         
         // 全てのドロップターゲットをリセット
         document.querySelectorAll('.member-section').forEach(section => {
-            section.classList.remove('drag-over');
+            section.classList.remove('drag-over', 'drop-target', 'cross-team-target', 'same-team-target');
         });
     }
 
@@ -1068,7 +1081,18 @@
         const currentMemberId = getTaskCurrentAssignee(taskId);
         
         if (newMemberId !== currentMemberId) {
-            updateTaskAssignee(taskId, newMemberId);
+            // クロスチーム移動かどうかチェック
+            const currentMember = members.find(m => m.id === currentMemberId);
+            const newMember = members.find(m => m.id === newMemberId);
+            const task = tasks.find(t => t.id === taskId);
+            
+            if (isTaskMovingAcrossTeams(currentMember, newMember)) {
+                // クロスチーム移動の場合は確認ダイアログを表示
+                showCrossTeamTransferConfirmation(task, currentMember, newMember, taskId, newMemberId);
+            } else {
+                // 同一チーム内移動は直接実行
+                updateTaskAssignee(taskId, newMemberId);
+            }
         }
         
         e.currentTarget.classList.remove('drag-over');
@@ -1094,6 +1118,122 @@
             showNotification(`タスク「${task.title}」を${member.name}に割り当てました`, 'success');
         }
     }
+
+    // クロスチーム移動かどうかを判定
+    function isTaskMovingAcrossTeams(currentMember, newMember) {
+        if (!currentMember || !newMember) return false;
+        
+        // メンバーがチームに所属していない場合は同一チーム扱い
+        if (!currentMember.teams || !newMember.teams) return false;
+        if (currentMember.teams.length === 0 || newMember.teams.length === 0) return false;
+        
+        // 共通のチームがあるかチェック
+        const hasCommonTeam = currentMember.teams.some(teamId => 
+            newMember.teams.includes(teamId)
+        );
+        
+        return !hasCommonTeam;
+    }
+
+    // クロスチーム移動の確認ダイアログ
+    function showCrossTeamTransferConfirmation(task, currentMember, newMember, taskId, newMemberId) {
+        const currentMemberTeams = currentMember.teams ? 
+            currentMember.teams.map(teamId => {
+                const team = teams.find(t => t.id === teamId);
+                return team ? team.name : 'Unknown';
+            }).join(', ') : 'チーム未所属';
+        
+        const newMemberTeams = newMember.teams ? 
+            newMember.teams.map(teamId => {
+                const team = teams.find(t => t.id === teamId);
+                return team ? team.name : 'Unknown';
+            }).join(', ') : 'チーム未所属';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal show';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-exchange-alt"></i> チーム間移動の確認</h3>
+                    <button type="button" class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="cross-team-transfer-info">
+                        <div class="transfer-task-info">
+                            <h4 style="margin-bottom: 10px; color: #333;">移動するタスク</h4>
+                            <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                                <div style="font-weight: 600; color: #495057;">${task.title}</div>
+                                <div style="font-size: 13px; color: #6c757d; margin-top: 5px;">${task.description || '説明なし'}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="transfer-members-info">
+                            <div class="transfer-from" style="margin-bottom: 15px;">
+                                <h4 style="color: #dc3545; margin-bottom: 8px;">
+                                    <i class="fas fa-arrow-left"></i> 移動元
+                                </h4>
+                                <div style="display: flex; align-items: center; padding: 10px; background: #fff5f5; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                    <div class="member-avatar" style="background-color: ${currentMember.color}; width: 40px; height: 40px; margin-right: 12px;">
+                                        ${currentMember.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600;">${currentMember.name}</div>
+                                        <div style="font-size: 12px; color: #dc3545;">チーム: ${currentMemberTeams}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="transfer-to">
+                                <h4 style="color: #28a745; margin-bottom: 8px;">
+                                    <i class="fas fa-arrow-right"></i> 移動先
+                                </h4>
+                                <div style="display: flex; align-items: center; padding: 10px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <div class="member-avatar" style="background-color: ${newMember.color}; width: 40px; height: 40px; margin-right: 12px;">
+                                        ${newMember.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600;">${newMember.name}</div>
+                                        <div style="font-size: 12px; color: #28a745;">チーム: ${newMemberTeams}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 12px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffeaa7;">
+                            <div style="display: flex; align-items: center; color: #856404;">
+                                <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                                <span style="font-size: 14px;">このタスクを異なるチームのメンバーに移動します。よろしいですか？</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                        <i class="fas fa-times"></i> キャンセル
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="confirmCrossTeamTransfer('${taskId}', '${newMemberId}')">
+                        <i class="fas fa-check"></i> 移動を実行
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    // クロスチーム移動を確定実行
+    window.confirmCrossTeamTransfer = function(taskId, newMemberId) {
+        const modal = document.querySelector('.modal.show');
+        if (modal) {
+            modal.remove();
+        }
+        
+        updateTaskAssignee(taskId, newMemberId);
+        
+        const newMember = members.find(m => m.id === newMemberId);
+        const task = tasks.find(t => t.id === taskId);
+        showNotification(`タスク「${task.title}」を${newMember.name}に移動しました（チーム間移動）`, 'success');
+    };
 
     // タスク日付更新
     function updateTaskDate(taskId, newDate) {
