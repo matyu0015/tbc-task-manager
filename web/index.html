@@ -1092,6 +1092,70 @@
             font-weight: 600;
         }
 
+        /* 表示モード用CSS */
+        .view-mode-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+
+        .view-mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .view-mode-selector label {
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        #view-mode, #team-filter {
+            padding: 10px 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        #view-mode:focus, #team-filter:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.8);
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        #team-filter {
+            min-width: 250px;
+            max-height: 120px;
+        }
+
+        #team-selector-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #team-selector-container label {
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
         @media (max-width: 1200px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -1277,6 +1341,14 @@
             <div class="main-content">
                 <div class="controls">
                     <div class="filters">
+                        <select id="view-mode" onchange="handleViewModeChange()">
+                            <option value="current-team">現在のチーム</option>
+                            <option value="all-teams">全チーム</option>
+                            <option value="custom-teams">選択チーム</option>
+                        </select>
+                        <select id="team-filter" multiple onchange="handleTeamFilterChange()" style="display: none;">
+                            <!-- チーム選択肢がここに動的に追加される -->
+                        </select>
                         <select id="project-filter">
                             <option value="">全案件</option>
                         </select>

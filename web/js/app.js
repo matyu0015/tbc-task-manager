@@ -9,6 +9,8 @@
     let teams = [];
     let currentTaskId = null;
     let currentTeamId = null; // チーム編集用
+    let currentViewMode = 'current-team'; // 'current-team', 'all-teams', 'custom-teams'
+    let selectedTeams = []; // カスタムチーム選択時の選択チーム
     let currentPeriod = 'week'; // 'week' or 'month'
     let currentPeriodOffset = 0; // 0=今週/今月, -1=先週/先月, 1=来週/来月
 
@@ -554,8 +556,24 @@
 
     // チームオプションを更新
     function updateTeamOptions() {
-        // 今後チーム選択UIを追加する際に使用
+        updateTeamFilter();
         console.log('チームオプション更新:', teams);
+    }
+
+    // チームフィルターオプションを更新
+    function updateTeamFilter() {
+        const teamFilter = document.getElementById('team-filter');
+        if (!teamFilter) return;
+
+        teamFilter.innerHTML = '';
+        teams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.id;
+            option.textContent = team.name;
+            option.style.backgroundColor = team.color;
+            option.style.color = 'white';
+            teamFilter.appendChild(option);
+        });
     }
 
     // データ保存（下位互換のため残すが、Firestoreでは自動保存される）
@@ -802,14 +820,17 @@
         
         const todayTasks = getTodayTasks();
         
-        if (members.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>メンバーが登録されていません</p></div>';
+        // チームフィルターに基づいてメンバーを絞り込み
+        const filteredMembers = getFilteredMembersByTeam();
+        
+        if (filteredMembers.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>表示するメンバーがいません</p></div>';
             return;
         }
         
         container.innerHTML = '';
         
-        members.forEach(member => {
+        filteredMembers.forEach(member => {
             const memberTasks = todayTasks.filter(task => task.assigneeId === member.id);
             
             const memberSection = document.createElement('div');
@@ -1392,6 +1413,76 @@
         }
     };
 
+    // 表示モード変更処理
+    window.handleViewModeChange = function() {
+        const viewMode = document.getElementById('view-mode').value;
+        const teamFilter = document.getElementById('team-filter');
+        
+        currentViewMode = viewMode;
+        
+        if (viewMode === 'custom-teams') {
+            teamFilter.style.display = 'block';
+        } else {
+            teamFilter.style.display = 'none';
+            selectedTeams = [];
+        }
+        
+        // 表示を更新
+        updateDisplayBasedOnTeamSelection();
+    };
+
+    // チームフィルター変更処理
+    window.handleTeamFilterChange = function() {
+        const teamFilter = document.getElementById('team-filter');
+        selectedTeams = Array.from(teamFilter.selectedOptions).map(option => option.value);
+        
+        // 表示を更新
+        updateDisplayBasedOnTeamSelection();
+    };
+
+    // チーム選択に基づいて表示を更新
+    function updateDisplayBasedOnTeamSelection() {
+        updateTodayTasks();
+        updatePeriodTasks();
+        updateCalendar();
+        
+        // メンバーフィルターも更新（選択チームのメンバーのみ表示）
+        updateMemberFilterBasedOnTeams();
+    }
+
+    // チーム選択に基づいてメンバーフィルターを更新
+    function updateMemberFilterBasedOnTeams() {
+        const memberFilter = document.getElementById('member-filter');
+        if (!memberFilter) return;
+
+        const currentValue = memberFilter.value;
+        memberFilter.innerHTML = '<option value="">全メンバー</option>';
+        
+        const filteredMembers = getFilteredMembersByTeam();
+        filteredMembers.forEach(member => {
+            memberFilter.innerHTML += `<option value="${member.name}">${member.name}</option>`;
+        });
+        
+        if (currentValue && filteredMembers.find(m => m.name === currentValue)) {
+            memberFilter.value = currentValue;
+        }
+    }
+
+    // チーム選択に基づいてフィルターされたメンバーを取得
+    function getFilteredMembersByTeam() {
+        if (currentViewMode === 'all-teams') {
+            return members;
+        } else if (currentViewMode === 'custom-teams') {
+            if (selectedTeams.length === 0) return members;
+            return members.filter(member => 
+                member.teams && member.teams.some(teamId => selectedTeams.includes(teamId))
+            );
+        } else {
+            // current-team: 現在は全メンバー表示（後で改善可能）
+            return members;
+        }
+    }
+
     // タスク保存（非同期ラッパー）
     window.saveTask = function() {
         saveTaskAsync().catch(error => {
@@ -1906,16 +1997,21 @@
     // 期間別タスク更新
     function updatePeriodTasks() {
         const container = document.getElementById('period-tasks-by-member');
+        if (!container) return;
+        
         const periodTasks = getPeriodTasks();
         
-        if (members.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>メンバーが登録されていません</p></div>';
+        // チームフィルターに基づいてメンバーを絞り込み
+        const filteredMembers = getFilteredMembersByTeam();
+        
+        if (filteredMembers.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>表示するメンバーがいません</p></div>';
             return;
         }
         
         container.innerHTML = '';
         
-        members.forEach(member => {
+        filteredMembers.forEach(member => {
             const memberTasks = periodTasks.filter(task => task.assigneeId === member.id);
             const completedTasks = memberTasks.filter(task => task.status === '完了');
             const inProgressTasks = memberTasks.filter(task => task.status === '進行中');
