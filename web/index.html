@@ -27,14 +27,18 @@
         .header {
             background-image: url('./images/header-bg.jpg');
             background-size: cover;
-            background-position: center;
+            background-position: center center;
             background-repeat: no-repeat;
             color: white;
-            padding: 20px 0;
+            padding: 40px 0;
             text-align: center;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             position: relative;
             overflow: hidden;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .header::before {
@@ -1186,8 +1190,24 @@
         }
 
         #team-filter {
-            min-width: 250px;
-            max-height: 120px;
+            min-width: 280px;
+            max-height: 150px;
+            background: rgba(255,255,255,0.95);
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        #team-filter option {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        #team-filter option:checked {
+            background: #667eea !important;
+            color: white !important;
         }
 
         #team-selector-container {

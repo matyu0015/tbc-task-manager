@@ -633,7 +633,13 @@
                 const taskId = info.event.id;
                 const task = tasks.find(t => t.id === taskId);
                 if (task) {
-                    openTaskModal(null, task);
+                    // 右クリックまたはCtrl+クリックで詳細ポップアップ、通常クリックで編集
+                    if (info.jsEvent.which === 3 || info.jsEvent.ctrlKey || info.jsEvent.metaKey) {
+                        info.jsEvent.preventDefault();
+                        showTaskDetails(task);
+                    } else {
+                        openTaskModal(null, task);
+                    }
                 }
             },
             
@@ -646,14 +652,32 @@
             
             // イベント表示時の処理
             eventDidMount: function(info) {
-                const task = tasks.find(t => t.id === info.event.id);
+                const taskId = info.event.id.split('_candidate_')[0]; // 不定期タスクの場合のID処理
+                const task = tasks.find(t => t.id === taskId);
                 if (task) {
                     const assignee = members.find(m => m.id === task.assigneeId);
+                    let tooltipText = `案件: ${getProjectName(task.projectId)}\n優先度: ${task.priority}\nステータス: ${task.status}`;
+                    
                     if (assignee) {
                         info.el.style.borderLeftColor = assignee.color;
                         info.el.style.borderLeftWidth = '4px';
-                        info.el.title = `担当: ${assignee.name}\n案件: ${getProjectName(task.projectId)}\n優先度: ${task.priority}`;
+                        
+                        tooltipText = `担当: ${assignee.name}\n` + tooltipText;
+                        
+                        // チーム情報を追加
+                        if (assignee.teams && assignee.teams.length > 0) {
+                            const memberTeams = assignee.teams.map(teamId => {
+                                const team = teams.find(t => t.id === teamId);
+                                return team ? team.name : '';
+                            }).filter(name => name).join(', ');
+                            tooltipText += `\nチーム: ${memberTeams}`;
+                        }
+                        
+                        // 右クリックで削除のヒント
+                        tooltipText += '\n\n右クリックまたはCtrl+クリックで詳細表示・削除';
                     }
+                    
+                    info.el.title = tooltipText;
                 }
             }
         });
@@ -666,18 +690,37 @@
         const project = projects.find(p => p.id === task.projectId);
         const assignee = members.find(m => m.id === task.assigneeId);
         
+        // 担当者のチーム情報を取得
+        let teamInfo = '';
+        let teamColor = null;
+        if (assignee && assignee.teams && assignee.teams.length > 0) {
+            const memberTeams = assignee.teams.map(teamId => {
+                const team = teams.find(t => t.id === teamId);
+                return team ? team.name : '';
+            }).filter(name => name).join(', ');
+            teamInfo = memberTeams;
+            
+            // 最初のチームの色を使用
+            const firstTeam = teams.find(t => t.id === assignee.teams[0]);
+            if (firstTeam) {
+                teamColor = firstTeam.color;
+            }
+        }
+        
         let eventData = {
             id: candidateDate ? `${task.id}_candidate_${candidateIndex}` : task.id,
             title: candidateDate ? `${task.title} (候補${candidateIndex + 1})` : task.title,
             start: candidateDate ? candidateDate.start : task.start,
             end: candidateDate ? candidateDate.end : task.end,
             backgroundColor: project ? project.color : '#667eea',
-            borderColor: assignee ? assignee.color : '#333',
+            borderColor: teamColor || (assignee ? assignee.color : '#333'),
+            borderWidth: teamColor ? 3 : 1,
             textColor: getContrastColor(project ? project.color : '#667eea'),
             extendedProps: {
                 task: task,
                 assigneeName: assignee ? assignee.name : '未設定',
                 projectName: project ? project.name : '未設定',
+                teamName: teamInfo || 'チーム未所属',
                 isIrregular: !!candidateDate,
                 candidateIndex: candidateIndex
             }
@@ -774,42 +817,133 @@
         
         if (!container) return; // 要素が存在しない場合は早期リターン
         
-        if (members.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>メンバーが登録されていません</p></div>';
+        const filteredMembers = getFilteredMembersByTeam();
+        
+        if (filteredMembers.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>表示するメンバーがいません</p></div>';
             return;
         }
         
         container.innerHTML = '';
         
-        members.forEach(member => {
-            const memberDiv = document.createElement('div');
-            memberDiv.className = 'team-member';
-            memberDiv.style.borderLeftColor = member.color;
-            
+        // チームごとにメンバーをグループ化
+        const membersByTeam = {};
+        
+        filteredMembers.forEach(member => {
             const todayTasks = getTodayTasksForMember(member.id);
             const completedTasks = todayTasks.filter(task => task.status === '完了');
             const completionRate = todayTasks.length > 0 ? Math.round((completedTasks.length / todayTasks.length) * 100) : 0;
             
-            memberDiv.innerHTML = `
-                <div class="member-info">
-                    <div>
-                        <div class="member-name">${member.name}</div>
-                        <div style="font-size: 12px; color: #666;">${member.role}</div>
-                    </div>
-                    <div class="task-count">${todayTasks.length}</div>
-                </div>
-                <div class="completion-rate">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                        <span>今日の達成率</span>
-                        <span>${completionRate}%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${completionRate}%"></div>
-                    </div>
-                </div>
-            `;
+            // メンバーが所属するチームを処理
+            if (member.teams && member.teams.length > 0) {
+                member.teams.forEach(teamId => {
+                    const team = teams.find(t => t.id === teamId);
+                    if (team && (currentViewMode === 'all-teams' || selectedTeams.length === 0 || selectedTeams.includes(teamId))) {
+                        if (!membersByTeam[teamId]) {
+                            membersByTeam[teamId] = {
+                                team: team,
+                                members: []
+                            };
+                        }
+                        
+                        // 重複防止
+                        if (!membersByTeam[teamId].members.some(m => m.id === member.id)) {
+                            membersByTeam[teamId].members.push({
+                                ...member,
+                                todayTasks,
+                                completionRate
+                            });
+                        }
+                    }
+                });
+            } else {
+                // チーム未所属メンバー
+                if (!membersByTeam['no-team']) {
+                    membersByTeam['no-team'] = {
+                        team: { name: 'チーム未所属', color: '#6c757d' },
+                        members: []
+                    };
+                }
+                membersByTeam['no-team'].members.push({
+                    ...member,
+                    todayTasks,
+                    completionRate
+                });
+            }
+        });
+        
+        // チームごとにメンバーを表示
+        Object.values(membersByTeam).forEach(({ team, members }) => {
+            // チーム見出し
+            if (currentViewMode === 'all-teams' || currentViewMode === 'custom-teams') {
+                const teamHeader = document.createElement('div');
+                teamHeader.className = 'team-group-header';
+                teamHeader.style.cssText = `
+                    background: ${team.color}15;
+                    border: 2px solid ${team.color}40;
+                    border-radius: 8px;
+                    padding: 10px 15px;
+                    margin: 15px 0 10px 0;
+                    font-weight: 600;
+                    color: ${team.color};
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                `;
+                teamHeader.innerHTML = `
+                    <div style="width: 12px; height: 12px; background: ${team.color}; border-radius: 50%;"></div>
+                    ${team.name} (${members.length}名)
+                `;
+                container.appendChild(teamHeader);
+            }
             
-            container.appendChild(memberDiv);
+            // メンバー表示
+            members.forEach(member => {
+                const memberDiv = document.createElement('div');
+                memberDiv.className = 'team-member';
+                memberDiv.style.cssText = `
+                    border: 2px solid ${team.color}30;
+                    border-left: 4px solid ${team.color};
+                    background: ${team.color}08;
+                    margin-bottom: 8px;
+                    border-radius: 8px;
+                    transition: all 0.3s ease;
+                `;
+                
+                memberDiv.innerHTML = `
+                    <div class="member-info">
+                        <div>
+                            <div class="member-name">${member.name}</div>
+                            <div style="font-size: 12px; color: #666;">${member.role}</div>
+                        </div>
+                        <div class="task-count">${member.todayTasks.length}</div>
+                    </div>
+                    <div class="completion-rate">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                            <span>今日の達成率</span>
+                            <span>${member.completionRate}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${member.completionRate}%; background: ${team.color};"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // ホバー効果
+                memberDiv.addEventListener('mouseenter', () => {
+                    memberDiv.style.borderColor = team.color;
+                    memberDiv.style.background = `${team.color}15`;
+                    memberDiv.style.transform = 'translateX(3px)';
+                });
+                
+                memberDiv.addEventListener('mouseleave', () => {
+                    memberDiv.style.borderColor = `${team.color}30`;
+                    memberDiv.style.background = `${team.color}08`;
+                    memberDiv.style.transform = 'translateX(0)';
+                });
+                
+                container.appendChild(memberDiv);
+            });
         });
     }
 
@@ -1005,10 +1139,15 @@
         const memberFilter = document.getElementById('member-filter').value;
         const statusFilter = document.getElementById('status-filter').value;
         
+        // チームフィルター適用
+        const filteredMembers = getFilteredMembersByTeam();
+        const filteredMemberIds = filteredMembers.map(m => m.id);
+        
         return tasks.filter(task => {
             return (!projectFilter || task.projectId === projectFilter) &&
                    (!memberFilter || task.assigneeId === memberFilter) &&
-                   (!statusFilter || task.status === statusFilter);
+                   (!statusFilter || task.status === statusFilter) &&
+                   (!task.assigneeId || filteredMemberIds.includes(task.assigneeId)); // チームフィルター
         });
     }
 
