@@ -8,6 +8,7 @@
     let members = [];
     let teams = [];
     let currentTaskId = null;
+    let currentTeamId = null; // チーム編集用
     let currentPeriod = 'week'; // 'week' or 'month'
     let currentPeriodOffset = 0; // 0=今週/今月, -1=先週/先月, 1=来週/来月
 
@@ -1177,6 +1178,218 @@
 
     window.closeModal = function(modalId) {
         document.getElementById(modalId).classList.remove('show');
+    };
+
+    // チーム管理関数
+    window.openTeamModal = function() {
+        const modal = document.getElementById('team-modal');
+        updateTeamsList();
+        updateMemberAssignmentList();
+        modal.classList.add('show');
+    };
+
+    window.switchTeamTab = function(tabName) {
+        // すべてのタブボタンとコンテンツを非アクティブに
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // 指定されたタブをアクティブに
+        event.target.classList.add('active');
+        document.getElementById(tabName + '-tab').classList.add('active');
+    };
+
+    window.openTeamForm = function(teamId = null) {
+        currentTeamId = teamId;
+        const formSection = document.getElementById('team-form-section');
+        const formTitle = document.getElementById('team-form-title');
+        
+        if (teamId) {
+            // 編集モード
+            const team = teams.find(t => t.id === teamId);
+            if (team) {
+                formTitle.textContent = 'チーム編集';
+                document.getElementById('team-name').value = team.name;
+                document.getElementById('team-description').value = team.description || '';
+                document.getElementById('team-color').value = team.color || '#3498db';
+            }
+        } else {
+            // 新規作成モード
+            formTitle.textContent = '新規チーム作成';
+            document.getElementById('team-form').reset();
+            document.getElementById('team-color').value = '#3498db';
+        }
+        
+        formSection.style.display = 'block';
+    };
+
+    window.cancelTeamForm = function() {
+        document.getElementById('team-form-section').style.display = 'none';
+        currentTeamId = null;
+    };
+
+    window.saveTeam = async function() {
+        const name = document.getElementById('team-name').value.trim();
+        const description = document.getElementById('team-description').value.trim();
+        const color = document.getElementById('team-color').value;
+        
+        if (!name) {
+            showNotification('チーム名を入力してください', 'error');
+            return;
+        }
+        
+        const teamData = {
+            name: name,
+            description: description,
+            color: color
+        };
+        
+        try {
+            if (currentTeamId) {
+                // 編集
+                teamData.id = currentTeamId;
+                await DB_OPERATIONS.saveTeam(teamData);
+                showNotification('チームを更新しました', 'success');
+            } else {
+                // 新規作成
+                await DB_OPERATIONS.saveTeam(teamData);
+                showNotification('チームを作成しました', 'success');
+            }
+            
+            cancelTeamForm();
+            updateTeamsList();
+            updateMemberAssignmentList();
+        } catch (error) {
+            console.error('チーム保存エラー:', error);
+            showNotification('チームの保存に失敗しました', 'error');
+        }
+    };
+
+    window.deleteTeam = async function(teamId) {
+        const team = teams.find(t => t.id === teamId);
+        if (!team) return;
+        
+        // チームに所属するメンバーを確認
+        const teamMembers = members.filter(member => member.teams && member.teams.includes(teamId));
+        
+        let confirmMessage = `チーム「${team.name}」を削除しますか？`;
+        if (teamMembers.length > 0) {
+            confirmMessage = `チーム「${team.name}」には${teamMembers.length}人のメンバーが所属しています。\nチームを削除すると、これらのメンバーからチーム情報が削除されます。\n\n本当に削除しますか？`;
+        }
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        try {
+            // メンバーからチーム情報を削除
+            for (const member of teamMembers) {
+                member.teams = member.teams.filter(tid => tid !== teamId);
+                await DB_OPERATIONS.saveMember(member);
+            }
+            
+            // チームを削除
+            await DB_OPERATIONS.deleteTeam(teamId);
+            showNotification(`チーム「${team.name}」を削除しました`, 'success');
+            
+            updateTeamsList();
+            updateMemberAssignmentList();
+        } catch (error) {
+            console.error('チーム削除エラー:', error);
+            showNotification('チームの削除に失敗しました', 'error');
+        }
+    };
+
+    function updateTeamsList() {
+        const container = document.getElementById('teams-list');
+        if (!container) return;
+        
+        if (teams.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>チームが登録されていません</p></div>';
+            return;
+        }
+        
+        container.innerHTML = teams.map(team => {
+            const memberCount = members.filter(member => member.teams && member.teams.includes(team.id)).length;
+            return `
+                <div class="team-item">
+                    <div class="team-info">
+                        <div class="team-color-dot" style="background-color: ${team.color}"></div>
+                        <div class="team-details">
+                            <h5>${team.name}</h5>
+                            <p>${team.description || '説明なし'} • ${memberCount}人</p>
+                        </div>
+                    </div>
+                    <div class="team-actions">
+                        <button class="btn btn-sm btn-primary" onclick="openTeamForm('${team.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteTeam('${team.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateMemberAssignmentList() {
+        const container = document.getElementById('member-assignment-list');
+        if (!container) return;
+        
+        if (members.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>メンバーが登録されていません</p></div>';
+            return;
+        }
+        
+        container.innerHTML = members.map(member => {
+            const memberTeams = member.teams ? member.teams.map(teamId => {
+                const team = teams.find(t => t.id === teamId);
+                return team ? `<span class="team-badge" style="background-color: ${team.color}">${team.name}</span>` : '';
+            }).join('') : '';
+            
+            const teamOptions = teams.map(team => 
+                `<option value="${team.id}" ${member.teams && member.teams.includes(team.id) ? 'selected' : ''}>${team.name}</option>`
+            ).join('');
+            
+            return `
+                <div class="member-assignment-item">
+                    <div class="member-info">
+                        <div class="member-avatar" style="background-color: ${member.color}">
+                            ${member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">${member.name}</div>
+                            <div style="font-size: 12px; color: #666;">${member.role}</div>
+                        </div>
+                    </div>
+                    <div class="member-teams">
+                        ${memberTeams || '<span style="color: #999;">チーム未割り当て</span>'}
+                    </div>
+                    <div>
+                        <select class="team-assignment-select" data-member-id="${member.id}" multiple onchange="updateMemberTeams('${member.id}', this)">
+                            ${teamOptions}
+                        </select>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.updateMemberTeams = async function(memberId, selectElement) {
+        const member = members.find(m => m.id === memberId);
+        if (!member) return;
+        
+        const selectedTeams = Array.from(selectElement.selectedOptions).map(option => option.value);
+        member.teams = selectedTeams;
+        
+        try {
+            await DB_OPERATIONS.saveMember(member);
+            showNotification(`${member.name}のチーム割り当てを更新しました`, 'success');
+            updateMemberAssignmentList();
+        } catch (error) {
+            console.error('メンバーチーム更新エラー:', error);
+            showNotification('チーム割り当ての更新に失敗しました', 'error');
+        }
     };
 
     // タスク保存（非同期ラッパー）
