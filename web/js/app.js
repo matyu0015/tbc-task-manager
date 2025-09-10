@@ -6,6 +6,7 @@
     let tasks = [];
     let projects = [];
     let members = [];
+    let teams = [];
     let currentTaskId = null;
     let currentPeriod = 'week'; // 'week' or 'month'
     let currentPeriodOffset = 0; // 0=今週/今月, -1=先週/先月, 1=来週/来月
@@ -191,6 +192,73 @@
                 console.error('メンバー削除エラー:', error);
                 throw error;
             }
+        },
+        
+        // チーム操作
+        async getTeams() {
+            try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    const stored = localStorage.getItem('teams');
+                    return stored ? JSON.parse(stored) : [];
+                }
+                const snapshot = await db.collection('teams').orderBy('name').get();
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                console.error('チーム取得エラー:', error);
+                return [];
+            }
+        },
+        
+        async saveTeam(team) {
+            try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    throw new Error('データベースが初期化されていません');
+                }
+                
+                if (team.id && team.id.startsWith('team-')) {
+                    // 新規作成
+                    delete team.id;
+                    const docRef = await db.collection('teams').add({
+                        ...team,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                } else if (team.id) {
+                    // 更新
+                    await db.collection('teams').doc(team.id).update({
+                        ...team,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return team.id;
+                } else {
+                    // 新規作成（IDなし）
+                    const docRef = await db.collection('teams').add({
+                        ...team,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return docRef.id;
+                }
+            } catch (error) {
+                console.error('チーム保存エラー:', error);
+                throw error;
+            }
+        },
+        
+        async deleteTeam(teamId) {
+            try {
+                if (!window.db) {
+                    console.warn('Firestore未初期化: LocalStorageを使用');
+                    throw new Error('データベースが初期化されていません');
+                }
+                await db.collection('teams').doc(teamId).delete();
+            } catch (error) {
+                console.error('チーム削除エラー:', error);
+                throw error;
+            }
         }
     };
 
@@ -201,6 +269,7 @@
             tasks = await DB_OPERATIONS.getTasks();
             projects = await DB_OPERATIONS.getProjects();
             members = await DB_OPERATIONS.getMembers();
+            teams = await DB_OPERATIONS.getTeams();
             
             // 初回起動時のサンプルデータ作成
             if (projects.length === 0) {
@@ -245,6 +314,41 @@
                     members.push({ id: memberId, ...member });
                 }
             }
+            
+            // 初回起動時のサンプルチームデータ作成
+            if (teams.length === 0) {
+                const defaultTeams = [
+                    {
+                        name: '事務チーム',
+                        description: '事務系業務を担当',
+                        color: '#3498db'
+                    },
+                    {
+                        name: '営業チーム',
+                        description: '営業活動を担当',
+                        color: '#e74c3c'
+                    }
+                ];
+                
+                for (const team of defaultTeams) {
+                    const teamId = await DB_OPERATIONS.saveTeam(team);
+                    teams.push({ id: teamId, ...team });
+                }
+            }
+            
+            // メンバーにチーム情報を追加（既存メンバーのteamsフィールドが空の場合）
+            if (members.length > 0 && teams.length > 0) {
+                for (const member of members) {
+                    if (!member.teams || member.teams.length === 0) {
+                        // デフォルトで事務チームに割り当て
+                        const defaultTeam = teams.find(t => t.name === '事務チーム');
+                        if (defaultTeam) {
+                            member.teams = [defaultTeam.id];
+                            await DB_OPERATIONS.saveMember(member);
+                        }
+                    }
+                }
+            }
         } catch (error) {
             console.error('初期化エラー:', error);
             // フォールバック: LocalStorageから読み込み
@@ -269,6 +373,7 @@
                     name: '田中太郎',
                     role: '案件マネージャー',
                     color: '#ff6b6b',
+                    teams: ['team-1'],
                     createdAt: new Date().toISOString()
                 },
                 {
@@ -276,6 +381,7 @@
                     name: '佐藤花子',
                     role: 'アドミ',
                     color: '#4ecdc4',
+                    teams: ['team-1'],
                     createdAt: new Date().toISOString()
                 },
                 {
@@ -283,6 +389,23 @@
                     name: '鈴木一郎',
                     role: 'バックエンドエンジニア',
                     color: '#45b7d1',
+                    teams: ['team-2'],
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            teams = JSON.parse(localStorage.getItem('teams')) || [
+                {
+                    id: 'team-1',
+                    name: '事務チーム',
+                    description: '事務系業務を担当',
+                    color: '#3498db',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 'team-2',
+                    name: '営業チーム',
+                    description: '営業活動を担当',
+                    color: '#e74c3c',
                     createdAt: new Date().toISOString()
                 }
             ];
@@ -362,6 +485,13 @@
             updateMemberOptions();
             loadDashboard();
         });
+        
+        // チームのリアルタイム更新
+        db.collection('teams').onSnapshot((snapshot) => {
+            teams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateTeamOptions();
+            loadDashboard();
+        });
     }
 
     // 案件オプションを更新
@@ -421,6 +551,12 @@
         }
     }
 
+    // チームオプションを更新
+    function updateTeamOptions() {
+        // 今後チーム選択UIを追加する際に使用
+        console.log('チームオプション更新:', teams);
+    }
+
     // データ保存（下位互換のため残すが、Firestoreでは自動保存される）
     function saveData() {
         // Firestore環境では自動保存されるため、何もしない
@@ -429,6 +565,7 @@
             localStorage.setItem('tasks', JSON.stringify(tasks));
             localStorage.setItem('projects', JSON.stringify(projects));
             localStorage.setItem('members', JSON.stringify(members));
+            localStorage.setItem('teams', JSON.stringify(teams));
         }
     }
 
