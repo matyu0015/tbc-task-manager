@@ -826,7 +826,7 @@
                     return candidateDate.getTime() === today.getTime();
                 });
             } else {
-                // 定期タスク：従来通り
+                // 定期・単発タスク：start日時で判定
                 if (!task.start) return false;
                 const taskDate = new Date(task.start);
                 taskDate.setHours(0, 0, 0, 0);
@@ -986,7 +986,6 @@
                             firstRow.className = 'candidate-date-row';
                             firstRow.innerHTML = `
                                 <input type="datetime-local" class="candidate-date" required value="${formatDateTimeLocal(candidate.start)}">
-                                <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）" value="${candidate.end ? formatDateTimeLocal(candidate.end) : ''}">
                                 <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn" style="display: none;">×</button>
                             `;
                             container.appendChild(firstRow);
@@ -996,7 +995,6 @@
                             newRow.className = 'candidate-date-row';
                             newRow.innerHTML = `
                                 <input type="datetime-local" class="candidate-date" required value="${formatDateTimeLocal(candidate.start)}">
-                                <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）" value="${candidate.end ? formatDateTimeLocal(candidate.end) : ''}">
                                 <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn">×</button>
                             `;
                             container.appendChild(newRow);
@@ -1004,6 +1002,11 @@
                     });
                 }
                 updateRemoveButtons();
+            } else if (task.type === 'single') {
+                // 単発タスク
+                taskTypeSelect.value = 'single';
+                toggleDateInputs(); // UI切り替え
+                document.getElementById('single-task-start').value = task.start ? formatDateTimeLocal(task.start) : '';
             } else {
                 // 定期タスク
                 taskTypeSelect.value = 'regular';
@@ -1077,11 +1080,10 @@
             const candidateDates = [];
             document.querySelectorAll('.candidate-date-row').forEach(row => {
                 const startInput = row.querySelector('.candidate-date');
-                const endInput = row.querySelector('.candidate-end');
                 if (startInput.value) {
                     candidateDates.push({
                         start: new Date(startInput.value).toISOString(),
-                        end: endInput.value ? new Date(endInput.value).toISOString() : null
+                        end: null
                     });
                 }
             });
@@ -1092,6 +1094,17 @@
             }
             
             taskData.candidateDates = candidateDates;
+        } else if (taskType === 'single') {
+            // 単発タスクの場合：終了日時なし
+            const start = document.getElementById('single-task-start').value;
+            
+            if (!start) {
+                showNotification('開始日時を入力してください', 'error');
+                return;
+            }
+            
+            taskData.start = new Date(start).toISOString();
+            taskData.end = null;
         } else {
             // 定期タスクの場合：従来通り
             const start = document.getElementById('task-start').value;
@@ -1651,7 +1664,7 @@
                     return candidateDate >= startDate && candidateDate <= endDate;
                 });
             } else {
-                // 定期タスク：従来通り
+                // 定期・単発タスク：start日時で判定
                 if (!task.start) return false;
                 const taskDate = new Date(task.start);
                 return taskDate >= startDate && taskDate <= endDate;
@@ -1849,33 +1862,41 @@
         }, 4000);
     }
 
-    // 不定期タスク用の関数
+    // タスクタイプ切り替え用の関数
     window.toggleDateInputs = function() {
         const taskType = document.getElementById('task-type').value;
         const regularDates = document.getElementById('regular-dates');
         const irregularDates = document.getElementById('irregular-dates');
+        const singleDates = document.getElementById('single-dates');
         const taskStart = document.getElementById('task-start');
         const taskEnd = document.getElementById('task-end');
+        const singleStart = document.getElementById('single-task-start');
+        
+        // すべて非表示にしてrequiredを解除
+        regularDates.style.display = 'none';
+        irregularDates.style.display = 'none';
+        singleDates.style.display = 'none';
+        taskStart.required = false;
+        taskEnd.required = false;
+        singleStart.required = false;
+        
+        // 候補日時の必須を解除
+        document.querySelectorAll('.candidate-date').forEach(input => {
+            input.required = false;
+        });
         
         if (taskType === 'irregular') {
-            regularDates.style.display = 'none';
             irregularDates.style.display = 'block';
-            taskStart.required = false;
-            taskEnd.required = false;
-            
             // 最初の候補日時を必須にする
             const firstCandidate = document.querySelector('.candidate-date');
             if (firstCandidate) firstCandidate.required = true;
+        } else if (taskType === 'single') {
+            singleDates.style.display = 'block';
+            singleStart.required = true;
         } else {
+            // regular
             regularDates.style.display = 'block';
-            irregularDates.style.display = 'none';
             taskStart.required = true;
-            taskEnd.required = false;
-            
-            // 候補日時の必須を解除
-            document.querySelectorAll('.candidate-date').forEach(input => {
-                input.required = false;
-            });
         }
     };
 
@@ -1885,7 +1906,6 @@
         newRow.className = 'candidate-date-row';
         newRow.innerHTML = `
             <input type="datetime-local" class="candidate-date" required>
-            <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）">
             <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn">×</button>
         `;
         container.appendChild(newRow);

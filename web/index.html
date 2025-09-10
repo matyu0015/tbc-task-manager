@@ -928,7 +928,7 @@
             align-items: center;
         }
 
-        .candidate-date, .candidate-end {
+        .candidate-date {
             flex: 1;
             padding: 8px 12px;
             border: 2px solid #e1e8ed;
@@ -1258,6 +1258,7 @@
                         <select id="task-type" required onchange="toggleDateInputs()">
                             <option value="regular">定期（固定日時）</option>
                             <option value="irregular">不定期（候補日時）</option>
+                            <option value="single">単発（終了日なし）</option>
                         </select>
                     </div>
                     
@@ -1278,11 +1279,17 @@
                             <div id="candidate-dates-container">
                                 <div class="candidate-date-row">
                                     <input type="datetime-local" class="candidate-date" required>
-                                    <input type="datetime-local" class="candidate-end" placeholder="終了時間（任意）">
                                     <button type="button" onclick="removeCandidateDate(this)" class="remove-date-btn" style="display: none;">×</button>
                                 </div>
                             </div>
                             <button type="button" onclick="addCandidateDate()" class="add-date-btn">+ 候補日時を追加</button>
+                        </div>
+                    </div>
+                    
+                    <div id="single-dates" style="display: none;">
+                        <div class="form-group">
+                            <label>開始日時 *</label>
+                            <input type="datetime-local" id="single-task-start" required>
                         </div>
                     </div>
                     
