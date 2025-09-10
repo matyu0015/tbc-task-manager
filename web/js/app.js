@@ -1391,8 +1391,16 @@
         currentTaskId = task ? task.id : null;
         const modal = document.getElementById('task-modal');
         const title = document.getElementById('task-modal-title');
+        const deleteBtn = document.getElementById('task-delete-btn');
         
         title.textContent = task ? 'タスク編集' : '新規タスク作成';
+        
+        // 削除ボタンの表示・非表示
+        if (task) {
+            deleteBtn.style.display = 'inline-flex';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
         
         // 案件とメンバーの選択肢を更新
         updateTaskFormOptions();
@@ -1721,6 +1729,7 @@
 
     // チーム選択に基づいて表示を更新
     function updateDisplayBasedOnTeamSelection() {
+        updateTeamMembers();    // チームメンバー表示を更新
         updateTodayTasks();
         updatePeriodTasks();
         updateCalendar();
@@ -2067,6 +2076,33 @@
         if (task) {
             openTaskModal(null, task);
         }
+    };
+
+    // 編集モードから現在のタスクを削除
+    window.deleteCurrentTask = function() {
+        if (!currentTaskId) return;
+        
+        const task = tasks.find(t => t.id === currentTaskId);
+        if (!task) return;
+        
+        if (!confirm(`タスク「${task.title}」を削除しますか？\n\nこの操作は取り消せません。`)) {
+            return;
+        }
+        
+        // タスクを削除
+        tasks = tasks.filter(t => t.id !== currentTaskId);
+        saveData();
+        
+        // 全ての表示を更新
+        updateCalendar();
+        updateTeamMembers();
+        updateTodayTasks();
+        updatePeriodTasks();
+        
+        // モーダルを閉じる
+        closeModal('task-modal');
+        
+        showNotification(`タスク「${task.title}」を削除しました`, 'success');
     };
 
     // デイリータスクモーダル
